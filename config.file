@@ -1,0 +1,3 @@
+G	R	Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	Alistipes_putredinis_DSM_17216.fna	NA	Test_gen1
+N	I	Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	DNA_pol.fasta	DNA_pol	Test_dna1
+P	I	Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	bdg.fa	BDG	Test_prot1
