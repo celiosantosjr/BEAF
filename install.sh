@@ -26,11 +26,8 @@ then
 	do
 		tar -zxvf $file
 	done
-	rm -rf list; ls *gz > list
-	for file in `cat list`
-	do
-		gunzip $file
-	done
+	rm -rf list
+	gunzip *.gz
 	cd ..
 	chmod u+x BEAF1011.65.sh
 	chmod u+x soft_BEAF1011.65.sh
