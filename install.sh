@@ -14,46 +14,37 @@ then
 	cd ..
 	chmod +x bb.orffinder.pl
 	rm -rf bb
-	unzip quast-master.zip 
-	cd quast-master
+	cd quast
 	sh ./install_full.sh
 	cd ..
-	unzip spades*
-	ls spades* > .list_spades
-	for folder in `cat .list_spades`;
+	cd spades
+	chmod +x make-targz.sh
+	sh ./make-targz.sh
+	cd Reference_seqs
+	ls *tar.gz > list
+	for file in `cat list`
 	do
-		cd $folder
-		chmod +x make-targz.sh
-		sh ./make-targz.sh
+		tar -zxvf $file
 	done
-	rm -rf .list_spades
-	mv .list_test list
-	./BEAF10.11.65.sh
-	rm -rf list
+	rm -rf list; ls *gz > list
+	for file in `cat list`
+	do
+		gunzip $file
+	done
+	cd ..
+	chmod u+x BEAF1011.65.sh
+	chmod u+x soft_BEAF1011.65.sh
+	echo "Testing complete installation..."
+	sh ./BEAF1011.65.sh > Run.log
+	sh ./soft_BEAF1011.65.sh > SoftRun.log
+	rm -rf Test_sample
+	cd Reference_seqs
+	rm -rf *.fa *.fasta *.fna BDG DNA_pol list
+	cd ..
+	echo "See in OUTPUT folder if all files read good."
+	echo "To test again, please download Test_sample and Reference_seqs folders again from source."
+	echo "########### Finished ###########"
 else
 	echo "You actually do not have installed usearch, please install usearch in /usr/bin or /bin folders"
 fi
 rm -rf .test.file
-cd Reference_seqs
-ls *tar.gz > list
-for file in `cat list`
-do
-tar -zxvf $file
-done
-rm -rf list
-ls *gz > list
-for file in `cat list`
-do
-gunzip $file
-done
-cd ..
-chmod u+x BEAF1011.65.sh
-echo "Testing complete installation..."
-sh ./BEAF1011.65.sh > Run.log
-rm -rf Test_sample
-cd Reference_seqs
-rm -rf *.fa *.fasta *.fna BDG DNA_pol
-cd ..
-echo "See in OUTPUT folder if all files read good."
-echo "To test again, please download Test_sample and Reference_seqs folders again from source."
-echo "########### Finished ###########"
