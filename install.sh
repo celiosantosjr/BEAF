@@ -8,6 +8,12 @@ then
 	pip install --user --upgrade cutadapt
 	git clone https://github.com/ablab/quast                        
 	git clone https://github.com/ablab/spades
+	git clone https://github.com/dsenalik/bb
+	cd bb
+	mv bb.orffinder ../bb.orffinder.pl
+	cd ..
+	chmod +x bb.orffinder.pl
+	rm -rf bb
 	unzip quast-master.zip 
 	cd quast-master
 	sh ./install_full.sh
