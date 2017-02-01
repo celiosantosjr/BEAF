@@ -89,7 +89,7 @@ Results are given inside OUTPUT folder. In each output, previously designed by u
 
 # Speeding up the process
 
-(1) To speed up all process, you can disabilitate some functions over the script, this will be done running script soft_BEAF10.11.65.sh instead BEAF1011.65.sh.  - This pipeline does not make the fastq file trimming, quality test of fastq files, assembly retry (it would take large kmers scenario), QUAST assessment or ORFs prediction;
+(1) To speed up all process, you can disabilitate some functions over the script, this will be done running script soft_BEAF10.11.65.sh instead BEAF1011.65.sh. - This pipeline does not make the fastq file trimming, quality test of fastq files, assembly retry (it would take small kmers scenario which can take more time instead for genomes binning), QUAST assessment or ORFs prediction;
 
 	$ cd /PATHWAY_TO_HERE/BEAF1011.65_master
 	$ ./soft_BEAF1011.65.sh > Run.log
