@@ -3,6 +3,7 @@ which usearch > .test.file
 if [ -s .test.file ]
 then
 	sudo apt-get install hmmer ncbi-blast+ python-biopython git
+	sudo apt-get install -y pkg-config libfreetype6-dev libpng-dev python-matplotlib
 	sudo apt-get upgrade python-biopython
 	pip install -U pip
 	pip install --user --upgrade cutadapt
