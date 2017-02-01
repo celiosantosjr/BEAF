@@ -11,13 +11,11 @@ then
 	git clone https://github.com/dsenalik/bb
 	cd bb
 	mv bb.orffinder ../bb.orffinder.pl
-	cd ..
 	chmod +x bb.orffinder.pl
-	rm -rf bb
-	cd quast
+	cd ../quast
+	rm -rf ../bb
 	sh ./install_full.sh
-	cd ..
-	cd spades
+	cd ../spades
 	chmod +x make-targz.sh
 	sh ./make-targz.sh
 	cd Reference_seqs
