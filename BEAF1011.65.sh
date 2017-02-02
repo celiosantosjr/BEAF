@@ -352,7 +352,7 @@ while read T1 T2 R1 R2 Ref SubRef Out Keep; do
 				if [ -s scaffolds.fasta ]
 				then
 					echo "# Analyzing draft putative genome..."
-					cp scaffolds.fasta $address/quast-4.4
+					cp scaffolds.fasta $address/quast
 					cd $address/spades/bin
 					rm -rf assembly_$Out
 					cd $address/quast
