@@ -4,11 +4,13 @@ ans="yes" #If you're sure you want to keep databases files from one loop to the 
 
 make_kp ()
 {
+if [ CFLR = "Y" ]; then continue; else
+	cd $address
+	rm -rf *.kp; rm -rf config.tmp; rm -rf config.file1
 	cat config.file | awk NF > config.file1
-	rm -rf config.kp
 	echo "# Checking if any buckets must be stored..."
 	echo "X" > LastR1.kp
-	sort -k3,3 config.file1 > config.kp
+	sort -k3,3 config.file1 > doconfig.kp
 	while read T1 T2 R1 R2 Ref SubRef Out; do
 		LastR1=`cat LastR1.kp`	
 		if [[ "$R1" == "$LastR1" ]]
@@ -20,20 +22,24 @@ make_kp ()
 		cat Keep_config.kp LastKeep.kp > Keep_config2.kp
 		mv Keep_config2.kp Keep_config.kp
 		echo "$R1" > LastR1.kp
-	done < config.kp
+	done < doconfig.kp
 	echo "N" > LastKeep.kp
 	cat Keep_config.kp LastKeep.kp > Keep_config2.kp
 	mv Keep_config2.kp Keep_config.kp
 	sed -i -e 1,1d Keep_config.kp
-	paste config.kp Keep_config.kp > config.tmp
+	paste doconfig.kp Keep_config.kp > config.tmp
 	rm -rf *.kp; rm -rf config.file1
 	mv config.tmp config.kp
+	cd $address; echo "1" > CR.step
+fi
 }
 
 Check ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "1" ]]; then continue; else
+	cd $address
+	rm -rf *.check
 	echo "# Checking your config file..."
-	
 	sort -k7,7 config.kp > config.check
 	while read T1 T2 R1 R2 Ref SubRef Out Keep; do
 		cd $address
@@ -98,124 +104,172 @@ Check ()
 		echo "$Out" > LastOut.check
 	done < config.check
 	rm -rf *.check
+	cd $address; echo "2" > CR.step
+fi
 }
 
 TimeHeader ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "2" ]]; then continue; else
+	cd $address
+	rm -rf header; rm -rf time.log2
 	echo "_________________________________________________________________________________________________________
 	Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs|ORFs" > header
 	cat time.log header > time.log2
 	rm -rf header time.log
 	mv time.log2 time.log
+	cd $address; echo "3" > CR.step
+fi
 }
 
 SoftTimeHeader ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "2" ]]; then continue; else
+	cd $address
+	rm -rf header; rm -rf time.log2
 	echo "_________________________________________________________________________________________________________
 	Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs" > header
 	cat time.log header > time.log2
 	rm -rf header time.log
 	mv time.log2 time.log
-}
-
-CopyFile () # T2 R1 R2
-{
-case $T2 in 
-		R|r)
-			rm -rf FASTQCresults
-			rm -rf *.gz
-			echo "# Copying file 1 from storage..."
-			cp $R1 $address
-			echo "# Copying file 2 from storage..."
-			cp $R2 $address
-		;;
-		I|i)
-			rm -rf FASTQCresults
-			rm -rf *.gz
-			echo "# Copying file from storage..."
-			cp $R1 $address
-		;;
-		F|f)
-			rm -rf FASTQCresults
-			echo "# Copying file from storage..."
-			cp $R1 $address
-			gunzip -c <`ls *.gz`> FastaQ-zcat.fa
-			rm -rf *.gz
-		;;
-	esac
+	cd $address; echo "3" > CR.step
+fi
 }
 
 Trim ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "3" && `cat CR.step` != "24" ]]; then continue; else
+	cd $address
+	rm -rf Buckets
+	mkdir Buckets
+	cd $address/Buckets
 	case $T2 in 
 		R|r)
-			echo "# Now we are trimming your files..."
+			echo "# Trimming your files..."
 			echo "# Starting file 1..."
 			cutadapt --minimum-length 80 --quality-base 24 --trim-n -o R1.trimmed.fastq.gz $R1
-			mv R1.trimmed.fastq.gz R1.trimmed.fastq.q
 			echo "# Starting file 2..."
 			cutadapt --minimum-length 80 --quality-base 24 --trim-n -o R2.trimmed.fastq.gz $R2
-			mv R2.trimmed.fastq.gz R2.trimmed.fastq.q
-			echo "# Removing intermediate files..."
-			rm -rf *.gz
-			mv R1.trimmed.fastq.q R1.trimmed.fastq.gz; mv R2.trimmed.fastq.q R2.trimmed.fastq.gz
 			echo "# Now we are merging files, it could take several minutes away..."
 			zcat *.gz | gzip -c > FastaQ-zcat.gz
-			mv FastaQ-zcat.gz FastaQ-zcat.tmp
+		;;
+		I|i)
+			echo "# Now we are trimming your files..."
+			cutadapt --minimum-length 80 --quality-base 24 --trim-n -o FastaQ-zcat.gz $R1
+		;;
+		F|f)
+			gunzip -c <`ls *.gz`> FastaQ-zcat.fa
 			rm -rf *.gz
-			mv FastaQ-zcat.tmp FastaQ-zcat.gz
+		;;
+	esac
+	cd $address; echo "4" > CR.step
+fi
+}
+
+QAnConversion ()
+{
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "4" ]]; then continue; else
+	cd $address/Buckets
+	case $T2 in
+		R|r|I|i)
+			rm -rf FASTQCresults; rm -rf FastaQ-zcat.fa
+			cd $address/Buckets
 			echo "# Starting quality assessment of trimming..."
 			mkdir FASTQCresults
 			fastqc -f fastq -o FASTQCresults FastaQ-zcat.gz
 			cd FASTQCresults
 			rm -rf *_fastqc
-			cd $address
+			cd $address/Buckets
 			echo "# We will convert merged file to fasta format."
 			gunzip -c FastaQ-zcat.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > FastaQ-zcat.fa
 			echo "# Removing unwanted files..."
 			rm -rf *.gz
 		;;
-		I|i)
-			echo "# Now we are trimming your files..."
-			echo "# Starting file 1..."
-			cutadapt --minimum-length 80 --quality-base 24 --trim-n -o I.trimmed.fastq.gz $R1
-			mv I.trimmed.fastq.gz I.trimmed.fastq.q
-			echo "# Removing intermediate files..."
-			rm -rf *.gz
-			mv I.trimmed.fastq.q I.trimmed.fastq.gz
-			echo "# Starting quality assessment of trimming..."
-			mkdir FASTQCresults
-			fastqc -f fastq -o FASTQCresults I.trimmed.fastq.gz
-			cd FASTQCresults
-			rm -rf *_fastqc
-			cd $address
-			echo "# We will convert merged file to fasta format."
-			gunzip -c I.trimmed.fastq.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > FastaQ-zcat.fa
-			echo "# Removing unwanted files..."
-			rm -rf I.trimmed.fastq.gz
-		;;
-		F|f)
-			touch FastaQ-zcat.fa
+		*)
+			rm -rf FASTQCresults
 		;;
 	esac
+	cd $address; echo "5" > CR.step
+fi
+}
+
+CopyFile ()
+{
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "3" && `cat CR.step` != "24" ]]; then continue; else
+	cd $address
+	rm -rf Buckets
+	mkdir Buckets
+	cd $address/Buckets
+	case $T2 in 
+		R|r)
+			echo "# Copying file 1 from storage..."
+			cp -r $R1 $address
+			echo "# Copying file 2 from storage..."
+			cp -r $R2 $address
+		;;
+		I|i)
+			echo "# Copying file from storage..."
+			cp -r $R1 $address
+		;;
+		F|f)
+			echo "# Copying file from storage..."
+			cp -r $R1 $address
+		;;
+	esac
+	cd $address; echo "4" > CR.step
+fi
+}
+
+SoftMergeRename ()
+{
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "4" ]]; then continue; else
+	cd $address
+	case $T2 in 
+		R|r)
+			rm -rf FastaQ-zcat.gz FastaQ-zcat.fa
+			echo "Merging files"
+			zcat *.gz | gzip -c > FastaQ-zcat.gz
+			echo "# We will convert merged file to fasta format."
+			gunzip -c FastaQ-zcat.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > Buckets/FastaQ-zcat.fa
+			rm -rf *.gz
+		;;
+		I|i)
+			rm -rf FastaQ-zcat.gz FastaQ-zcat.fa
+			gunzip -c `ls *.gz` | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > Buckets/FastaQ-zcat.fa
+		;;
+		F|f)
+			rm -rf FastaQ-zcat.fa
+			gunzip -c <`ls *.gz`> Buckets/FastaQ-zcat.fa
+			rm -rf *.gz
+		;;
+	esac
+	cd $address; echo "5" > CR.step
+fi
 }
 
 BucketEngine ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "5" && `cat CR.step` != "24" ]]; then continue; else
+	cd $address/Buckets
 	if [ -s buckets_list.txt ];
 	then
 		buckets=`ls *.bk | wc -l`
 		reads=`cat reads.nmb`
 	else
-		grep ">" FastaQ-zcat.fa | wc -l > reads.nmb
-		reads=`cat reads.nmb`
-		buckets=`expr $reads / 4500000`
+		if [ -s reads.nmb ]
+		then
+			touch reads.nmb
+		else
+			grep ">" FastaQ-zcat.fa | wc -l > reads.nmb
+			reads=`cat reads.nmb`
+			buckets=`expr $reads / 4500000`
+		fi
 		if [ "$buckets" -eq "0" ];
 		then
 			echo "# We identified $reads reads. It would take no buckets, avoiding this step."
 			mv FastaQ-zcat.fa unique.bk
 		else
-			echo "# We identified $reads reads. It would take $buckets buckets step."
+			echo "# We identified $reads reads. It would take $buckets bucket steps."
 			echo "### Starting operation of cutting and readapting..."
 			echo "## Generating buckets..."
 			shuf -i 0-1000000 -n $buckets > bk_list.txt
@@ -223,6 +277,7 @@ BucketEngine ()
 			for n in `cat bk_list.txt`; do
 				head -9000000 FastaQ-zcat.fa > $n.bk
 				sed -i '1,9000000d' FastaQ-zcat.fa
+				sed -i -e 1,1d bk_list.txt				
 			done
 			if [ -s FastaQ-zcat.fa ];
 			then
@@ -233,105 +288,132 @@ BucketEngine ()
 		rm -rf *.txt; rm -rf *.fa; rm -rf *.gz
 		ls *.bk > buckets_list.txt
 		buckets=`ls *.bk | wc -l`
+		cd $address
 	fi
+	cd $address; echo "6" > CR.step
+fi
 }
 
 Filter1 ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "6" ]]; then continue; else
+	cd $address
 	case $T1 in
 		G|g)	
 			echo "# Starting searches..."
 			echo "### Making database from reference genome... "
 			cd $address/Reference_seqs
-			cp $Ref none
+			cp -r $Ref none
 			cat none | awk NF > none1
 			sed -i '/>/d' none1
 			cat none1 | tr -d '\n' | sed 's/.\{100\}/&\n>\n/g' | sed '1s/.*/>\n&/' | awk -vRS=">" '{$0=n$0;ORS=RT}++n' > md8
 			rm -rf none none1
 			usearch -makeudb_usearch md8 -output $Ref.udb
 			rm -rf md8
-			mv $Ref.udb $address
-			cd $address
+			mv $Ref.udb $address/Buckets
+			cd $address/Buckets
+			rm -rf *.m7
 			case $Keep in
 				Y|y)
 					for buck in `cat buckets_list.txt`; do
-						usearch -usearch_global $buck -db $Ref.udb -strand both -id 0.95 -evalue 1e-20 -matched $buck.m8
+						if [ -s $buck.m8 ]
+						then
+							touch $buck.m8
+						else
+							usearch -usearch_global $buck -db $Ref.udb -strand both -id 0.95 -evalue 1e-20 -matched $buck.m7
+							mv $buck.m7 $buck.m8
+						fi
 					done
 				;;
 				*)
 					for buck in `cat buckets_list.txt`; do
-						usearch -usearch_global $buck -db $Ref.udb -strand both -id 0.95 -evalue 1e-20 -matched $buck.m8
+						usearch -usearch_global $buck -db $Ref.udb -strand both -id 0.95 -evalue 1e-20 -matched $buck.m7
+						mv $buck.m7 $buck.m8
 						rm -rf $buck 
 					done
 					rm -rf *.bk
 				;;
 			esac
-			rm -rf *.udb
+			rm -rf *.udb; rm -rf *.m7
 		;;
 		P|p|N|n)
-			cd $address/Reference_seqs
-			mkdir TestExtension
-			cp $Ref TestExtension
-			cd $address/Reference_seqs/TestExtension
-			ls *.fa > list.fa; ls *.fasta > list.fasta; ls *.fas > list.fas; ls *.faa > list.faa; ls *.fna > list.fna; ls *.fsa > list.fsa
-			cat list.f* > list; rm -rf list.f*
-			if [ -s list ]
+			cd $address/Buckets
+			if [ -s udblist ]
 			then
-				echo "# Recognized $Ref file as fasta format. Making udb..."
-				cat $Ref | awk NF > none
-				sed -i '/>/d' none
-				cat none | tr -d '\n' | sed 's/.\{100\}/&\n>\n/g' | sed '1s/.*/>\n&/' | awk -vRS=">" '{$0=n$0;ORS=RT}++n' > md8
-				usearch -makeudb_usearch md8 -output $Ref.udb
-				rm -rf md8 $Ref
-				mv $Ref.udb $address
-				cd $address/Reference_seqs
-				rm -rf TestExtension
-				cd $address
-				case $Keep in
-					Y|y)
-						for buck in `cat buckets_list.txt`; do
-							usearch -usearch_local $buck -db $Ref.udb -strand both -id 0.25 -evalue 1e-5 -matched $buck.m8
-						done
-					;;
-					*)
-						for buck in `cat buckets_list.txt`; do
-							usearch -usearch_local $buck -db $Ref.udb -strand both -id 0.25 -evalue 1e-5 -matched $buck.m8
-							rm -rf $buck
-						done
-						rm -rf *.bk
-					;;
-				esac
+				touch udblist
 			else
-				echo "# Recognized $Ref file as .udb format."
-				mv $Ref $address
+				rm -rf *.udb
 				cd $address/Reference_seqs
 				rm -rf TestExtension
-				cd $address
-				case $Keep in
-					Y|y)
-						for buck in `cat buckets_list.txt`; do
-							usearch -usearch_local $buck -db $Ref -strand both -id 0.25 -evalue 1e-5 -matched $buck.m8
-						done
-					;;
-					*)
-						for buck in `cat buckets_list.txt`; do
-							usearch -usearch_local $buck -db $Ref -strand both -id 0.25 -evalue 1e-5 -matched $buck.m8
-							rm -rf $buck
-						done
-						rm -rf *.bk
-					;;
-				esac
+				mkdir TestExtension
+				cp -r $Ref TestExtension
+				cd $address/Reference_seqs/TestExtension
+				ls *.fa > list.fa; ls *.fasta > list.fasta; ls *.fas > list.fas; ls *.faa > list.faa; ls *.fna > list.fna; ls *.fsa > list.fsa
+				cat list.f* > list; rm -rf list.f*
+				if [ -s list ]
+				then
+					echo "# Recognized $Ref file as fasta format. Making udb..."
+					cat $Ref | awk NF > none
+					sed -i '/>/d' none
+					cat none | tr -d '\n' | sed 's/.\{100\}/&\n>\n/g' | sed '1s/.*/>\n&/' | awk -vRS=">" '{$0=n$0;ORS=RT}++n' > md8
+					usearch -makeudb_usearch md8 -output $Ref.udb
+					rm -rf md8 $Ref
+					mv $Ref.udb $address/Buckets
+					cd $address/Reference_seqs
+					rm -rf TestExtension
+					cd $address/Buckets
+					ls *.udb > udblist
+				else
+					ls *.udb > listudb
+					if [ -s listudb ]
+					then
+						echo "# Recognized $Ref file as .udb format."
+						mv $Ref $address/Buckets
+						cd $address/Reference_seqs
+						rm -rf TestExtension
+						cd $address/Buckets
+						ls *.udb > udblist
+					else
+						echo "Couldn't recognize $Ref file as neither fasta nor udb format. Will try to use it as udb regardless."
+						mv $Ref $address/Buckets
+						cd $address/Reference_seqs
+						rm -rf TestExtension
+						cd $address/Buckets
+						ls $Ref > udblist
+					fi
+				fi
 			fi
-			rm -rf *.udb
+			cd $address/Buckets
+			dbinuse=`cat udblist`
+			rm -rf *.m7
+			case $Keep in
+				Y|y)
+					for buck in `cat buckets_list.txt`; do
+						usearch -usearch_local $buck -db $dbinuse -strand both -id 0.25 -evalue 1e-5 -matched $buck.m7
+						mv $buck.m7 $buck.m8
+					done
+				;;
+				*)
+					for buck in `cat buckets_list.txt`; do
+						usearch -usearch_local $buck -db $dbinuse -strand both -id 0.25 -evalue 1e-5 -matched $buck.m7
+						mv $buck.m7 $buck.m8
+						rm -rf $buck
+					done
+					rm -rf *.bk
+				;;
+			esac
+			rm -rf *.udb; rm -rf udblist; rm -rf hits; rm -rf *.m7
 		;;
 	esac
+	cd $address; echo "7" > CR.step
+fi
 }
 
 PreLogGen ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "7" ]]; then continue; else
+	cd $address/Buckets
 	cat *.m8 > hits
-	echo "### Removing temporary files (stage 2)..."
-	rm -rf *.m8; rm -rf *.txt
 	echo "## Calculating statistics..."
 	hits=`grep ">" hits | wc -l`
 	reads=`cat reads.nmb`
@@ -344,33 +426,42 @@ PreLogGen ()
 	Buckets: $buckets
 	Hits: $hits
 	Portion in ppm: $ppm1" > Log.txt
-	mkdir $Out
-	mkdir OUTPUT
-	mv $Out OUTPUT
-	mv Log.txt OUTPUT/$Out
-	cp FASTQCresults OUTPUT/$Out
+	mkdir $address/OUTPUT; mkdir $address/OUTPUT/$Out
+	mv Log.txt $address/OUTPUT/$Out
+	cp -r FASTQCresults $address/OUTPUT/$Out
 	cntg="0"
+	rm -rf *.txt; rm -rf *.m8
+	cd $address; echo "8" > CR.step
+fi
 }
 
 G_Prepare_SPADES ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "8" ]]; then continue; else
+	cd $address/Buckets
 	echo "# Making contigs for $Out..."
 	mv hits hits.fasta
-	cp hits.fasta $address/spades/bin
+	cp -r hits.fasta $address/spades/bin
 	mv hits.fasta $address/OUTPUT/$Out
 	cd $address/spades/bin
 	rm -rf assembly_*
+	cd $address; echo "9" > CR.step
+fi
 }
 
 G_SPADES1 ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "9" ]]; then continue; else
 	cd $address/spades/bin
 	python spades.py -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s hits.fasta -o assembly_$Out
 	rm -rf hits.fasta
+	cd $address; echo "10" > CR.step
+fi
 }
 
 G_SPADES2 ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "9" && `cat CR.step` != "10" ]]; then continue; else
 	cd $address/spades/bin/assembly_$Out
 	if [ -s scaffolds.fasta ]
 	then
@@ -379,21 +470,24 @@ G_SPADES2 ()
 		cd $address/OUTPUT/$Out
 		echo "# Trying for $Out with lower kmers"
 		rm -rf $address/spades/bin/assembly_*
-		cp hits.fasta $address/spades/bin
+		cp -r hits.fasta $address/spades/bin
 		cd $address/spades/bin
 		rm -rf assembly_*
 		python spades.py -k 11,15,21,25,31,35,41,45,51 --only-assembler -s hits.fasta -o assembly_$Out
 		rm -rf hits.fasta
 	fi
+	cd $address; echo "11" > CR.step
+fi
 }
 
 GA ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "10" ]]; then continue; else
 	cd $address/spades/bin/assembly_$Out
 	if [ -s scaffolds.fasta ]
 	then
 		echo "# Analyzing draft putative genome..."
-		cp scaffolds.fasta $address/quast
+		cp -r scaffolds.fasta $address/quast
 		cd $address/spades/bin
 		rm -rf assembly_$Out
 		cd $address/quast
@@ -410,6 +504,7 @@ GA ()
 		then
 			ORFs=`grep ">" ORFs.$Out.fna | wc -l`
 			gzip ORFs.$Out.fna
+			rm -rf ORFs.$Out.fna
 		else
 			rm -rf ORFs.$Out.fna
 		fi
@@ -417,12 +512,17 @@ GA ()
 	else
 		echo "# The proposed analysis of $Out could not continue due to problems in SPADES assembly."
 	fi
+	cd $address; echo "12" > CR.step
+fi
 }
 
 BlastDBGen ()
 {
-	mv hits Reference_seqs/$SubRef
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "8" ]]; then continue; else
+	cd $address/Buckets
+	mv hits $address/Reference_seqs/$SubRef
 	cd $address/Reference_seqs/$SubRef
+	rm -rf list.f*; rm -rf glist; rm -rf BlastDBlist
 	ls *.fa > list.fa; ls *.fasta > list.fasta; ls *.fas > list.fas; ls *.faa > list.faa; ls *.fna > list.fna; ls *.fsa > list.fsa
 	cat list.f* > glist; rm -rf list.f*
 	if [ -s glist ]
@@ -447,10 +547,14 @@ BlastDBGen ()
 			ls *.nsq | sed 's/.nsq//' | sort -k1,1 > BlastDBlist
 		;;
 	esac
+	cd $address; echo "13" > CR.step
+fi
 }
 
 Filter2 ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "13" ]]; then continue; else
+	cd $address/Reference_seqs/$SubRef
 	for sub in `cat BlastDBlist`; do
 		echo "# Searching against $sub..."
 		case $T1 in
@@ -472,10 +576,14 @@ Filter2 ()
 		rm -rf $sub.tmp
 		rm -rf BlastDBlist
 	done
+	cd $address; echo "14" > CR.step
+fi
 }
 
 SaveDBs ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "14" ]]; then continue; else
+	cd $address/Reference_seqs/$SubRef
 	case $ans in
 		Y|y|YES|Yes|yes)
 			echo "# Databases of subreference $SubRef now saved to References_seqs folder in blastdb format. Fasta files used to make the databases have been realocated to Reference_seqs/$SubRef/Fasta_files."
@@ -500,15 +608,20 @@ SaveDBs ()
 			rm -rf glist
 		;;
 	esac
+	cd $address; echo "15" > CR.step
+fi
 }
 
 Extraction ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "15" ]]; then continue; else
+	cd $address/Reference_seqs/$SubRef
 	echo "# Arranging data..."
 	mv *.ft $address/OUTPUT/$Out
-	mv hits $address/OUTPUT/$Out
 	mv *.time2 $address/OUTPUT/$Out
+	mv hits $address/OUTPUT/$Out
 	cd $address/OUTPUT/$Out
+	rm -rf ext.py
 	echo "#exclamationmark/usr/bin/python
 
 import string
@@ -579,30 +692,42 @@ print \"the Subset fasta file\", subsetName, \"is now created\"" > ext.py
 	mkdir contigs
 	mkdir blast_hits
 	mkdir ORFs
+	cd $address; echo "16" > CR.step
+fi
 }
 
 PN_Prepare_SPADES ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "17" ]]; then continue; else
 	cd $address/OUTPUT/$Out
+	rm -rf *.rev; rm -rf *.hits; rm -rf *.rev-hits
 	cut -f 1 $File > $File.rev
 	python ext.py $File.rev hits > $File.hits
 	rm -rf $File.hits
 	sq=`grep ">" $File.rev-hits | wc -l`
 	ppm2=`expr 1000000 \* $sq / $reads`
-	cp $File.rev-hits $address/spades/bin/$File.fasta
+	cp -r $File.rev-hits $address/spades/bin/$File.fasta
 	mv $File.rev-hits read_hits/$File.fasta
+	mv $File $address/OUTPUT/$Out/blast_hits
 	cd $address/spades/bin
 	rm -rf $address/spades/bin/assembly_*
+	cd $address; echo "18" > CR.step
+fi
 }
 
 PN_SPADES1 ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "18" ]]; then continue; else
 	cd $address/spades/bin
+	rm -rf assembly_*
 	python spades.py -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $File.fasta -o assembly_$Out_$File
+	cd $address; echo "19" > CR.step
+fi
 }
 
 PN_SPADES2 ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "18" && `cat CR.step` != "19" ]]; then continue; else
 	cd $address/spades/bin/assembly_$Out_$File
 	if [ -s scaffolds.fasta ]
 	then
@@ -612,12 +737,16 @@ PN_SPADES2 ()
 		cd $address/spades/bin
 		sq=`grep ">" $File.fasta | wc -l`
 		ppm2=`expr 1000000 \* $sq / $reads`
+		rm -rf assembly_*
 		python spades.py -k 9,11,13,15,17,19,21,31 --only-assembler -s $File.fasta -o assembly_$Out_$File
 	fi
+	cd $address; echo "20" > CR.step
+fi
 }
 
 PNA ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "20" ]]; then continue; else
 	cd $address/spades/bin/assembly_$Out_$File
 	if [ -s scaffolds.fasta ]
 	then
@@ -625,19 +754,21 @@ PNA ()
 		echo "# SPADES worked on $File for $Out, finding $cntg contigs"
 		mv scaffolds.fasta contigs.$File.fasta
 		mv contigs.$File.fasta $address/OUTPUT/$Out/contigs
-		cd $address/spades/bin
-		rm -rf assembly_$Out_$File; rm -rf $File.fasta
 	else
 		echo "# The proposed analysis could not continue due to problems in SPADES assembly."
-		cd $address/spades/bin
-		rm -rf assembly_$Out_$File; rm -rf $File.fasta
-		cd $address/OUTPUT/$Out 
+
 		Warnings="WARNING: Did not run SPADES properly"
 	fi
+	cd $address/spades/bin
+	rm -rf assembly_$Out_$File; rm -rf $File.fasta
+	cd $address/OUTPUT/$Out 
+	cd $address; echo "21" > CR.step
+fi
 }
 
 PNORFs ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "21" ]]; then continue; else
 	cd $address/OUTPUT/$Out/contigs
 	if [ -s contigs.$File.fasta ]
 	then
@@ -650,95 +781,127 @@ PNORFs ()
 			rm -rf ORFs.$File.fna
 		fi
 	fi
+	cd $address; echo "22" > CR.step
+fi
 }
 
 CleaningTheMess ()
 {
-	cd $address/OUTPUT/$Out
-	rm -rf *.time2
-	mv hits hits.fasta
-	gzip hits.fasta
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "21" && `cat CR.step` != "22" ]]; then continue; else
+	case $T1 in
+		P|p|N|n)
+			cd $address/OUTPUT/$Out/blast_hits
+			ls *.ft > list
+			for file in `cat list`; do
+				mv $file ${file/.f*/.blast.tsv}
+			done
+			rm -rf list
+		
+			cd $address/OUTPUT/$Out/contigs	
+			ls *.fasta > contigs_list
+			for file in `cat contigs_list`; do
+				mv $file ${file/.f*/.fasta}
+			done
+			rm -rf contigs_list
+
+			cd $address/OUTPUT/$Out/ORFs
+			ls *.fna > orfs_list
+			for file in `cat orfs_list`; do
+				mv $file ${file/.f*/.fna}
+			done
+			rm -rf orfs_list
+
+			cd $address/OUTPUT/$Out/read_hits
+			ls *.fasta > hits_list
+			for file in `cat hits_list`; do
+				mv $file ${file/.f*/.hits.fasta}
+			done
+			rm -rf hits_list
+		;;
+		G|g)
+			touch CR.step
+		;;
+	esac
 	rm -rf $address/spades/bin/assembly_*
+	cd $address/OUTPUT/$Out
+	rm -rf log.header log.tmp1; rm -rf cont_log*; rm -rf ORF_log*
 	echo "-----------------------------------------------------------------------------
 Subref_database|Hits_seq.|Ppm|Contigs|ORFs|Blast_Time|SPADES_Time|Total_SubRef_Time|Status" > log.header
-	sed -i 's/|/\t/g' log.header
 	cat log.header tmp1.* > log.tmp1
 	sed -i 's/|/\t/g' log.tmp1
 	cut -f 4 log.tmp1 > cont_log$(( n %= 100001))
 	cut -f 5 log.tmp1 > ORF_log$(( n %= 100001))
-	mv cont_log* $address
-	mv ORF_log* $address
-	rm -rf ext.py; rm -rf *.rev; rm -rf *.hits; rm -rf list; rm -rf tmp1.*; rm -rf log.header
 	mv *.ft blast_hits
-	cd $address/OUTPUT/$Out/blast_hits
-	ls *.ft > list
-	for file in `cat list`; do
-		mv $file ${file/.f*/.blast.tsv}
-	done
-	rm -rf list
-	cd $address/OUTPUT/$Out/contigs	
-	ls *.fasta > contigs_list
-	for file in `cat contigs_list`; do
-		mv $file ${file/.f*/.fasta}
-	done
-	rm -rf contigs_list
-	cd $address/OUTPUT/$Out/ORFs
-	ls *.fna > orfs_list
-	for file in `cat orfs_list`; do
-		mv $file ${file/.f*/.fna}
-	done
-	rm -rf orfs_list
-	cd $address/OUTPUT/$Out/read_hits
-	ls *.fasta > hits_list
-	for file in `cat hits_list`; do
-		mv $file ${file/.f*/.hits.fasta}
-	done
-	rm -rf hits_list
-	cd $address/OUTPUT/$Out
 	d2=`date -u "+%s"`
 	d3=$(echo "$d2 - $d1" |bc -l)
 	echo "Total time for Reference $Ref with Subreference $SubRef: $d3 seconds" > fulltime.tmp
 	cat log.tmp1 fulltime.tmp > log.tmp
 	cat Log.txt log.tmp > FL
-	rm -rf Log.txt log.tmp log.tmp1 fulltime.tmp 
+	rm -rf Log.txt log.tmp log.tmp1 fulltime.tmp ext.py list; rm -rf *.time2; rm -rf *.rev; rm -rf *.hits; rm -rf tmp1.*; rm -rf log.header
 	mv FL Log.txt
+	mv cont_log* $address; mv ORF_log* $address
+	mv hits hits.fasta
+	gzip hits.fasta
+	rm -rf hits hits.fasta
+	gzip scaffolds.fasta
+	rm -rf scaffolds.fasta
+	cd $address
+	case $Keep in
+		Y|y)
+			touch Buckets
+		;;
+		*)
+			rm -rf Buckets
+		;;
+	esac
+	cd $address; echo "23" > CR.step
+fi
 }
 
 PrintResults ()
 {
+cd $address; if [[ CFLR = "Y" && `cat CR.step` != "23" ]]; then continue; else
 	cd $address
 	d2=`date -u "+%s"`
 	d3=$(echo "$d2 - $d1" |bc -l)
 	if [ -s cont_log* ]
 	then
-		cat cont_log* > int
-		rm -rf cont_log*
-		sed -i '/[a-z]/d' int
-		cntg=`awk '{s+=$1} END {print s}' int`
-		rm -rf int
+		cat cont_log* > c_int
+		sed -i '/[a-z]/d' c_int
+		cntg=`awk '{s+=$1} END {print s}' c_int`
 	fi
 	if [ -s ORF_log* ]
 	then
-		cat ORF_log* > int
-		rm -rf ORF_log*
-		sed -i '/[a-z]/d' int
-		ORFs=`awk '{s+=$1} END {print s}' int`
-		rm -rf int
+		cat ORF_log* > o_int
+		sed -i '/[a-z]/d' o_int
+		ORFs=`awk '{s+=$1} END {print s}' o_int`
 	fi
 	echo "$Out|$R1|$T1|$T2|$Ref|$SubRef|$d3|$reads|$buckets|$ppm1|$cntg|$ORFs" > par.time
 	cat time.log par.time > time.log2; rm -rf time.log par.time; mv time.log2 time.log
 	sed -i 's/|/\t/g' time.log
-	sed -i -e 1,1d config.kp
+	rm -rf *_int; rm -rf ORF_log*; rm -rf cont_log*
 	echo -e "\n [BEAF12.01.17 worked in $R1 with reference as $Ref (output as $Out) for $d3 seconds] \n"
+	sed -i -e 1,1d config.kp
+	cd $address; echo "24" > CR.step
+fi
 }
 
 ErrorRevision ()
 {
+	cd $address; echo "25" > CR.step
 	cd $address/OUTPUT
+	rm -rf list
 	ls > list
 	sed -i '/list/d' list
 	sed -i '/Errors/d' list
-	mkdir Errors
+	if [ -d Errors ]
+	then
+		mv Errors Errors.old
+		mkdir Errors
+		mv Errors.old Errors
+	else
+		mkdir Errors
+	fi
 	for folder in `cat list`; do        
 	        cd $address/OUTPUT/$folder
 	        if [ -s scaffolds.fasta.gz ]
@@ -750,12 +913,12 @@ ErrorRevision ()
 	                        find "contigs" -type f -exec echo Found file {} \; > test.txt
 	                        if [ -s test.txt ]
 				then
-					touch scaffolds.fasta.gz
+					rm -rf test.txt
 	                        else
 					cd $address/OUTPUT
 					mv $folder Errors
+					rm -rf test.txt
 	                        fi
-	                        rm -rf test.txt
 	                else
 				cd $address/OUTPUT
 				mv $folder Errors
@@ -766,6 +929,8 @@ ErrorRevision ()
 	rm -rf list
 	cd $address/OUTPUT/Errors
 	ls > redolist
+	sed -i '/redolist/d' redolist
+	sed -i '/Errors.old/d' redolist
 	mv redolist $address
 	cd $address
 	for out in `cat redolist`; do
@@ -777,9 +942,9 @@ ErrorRevision ()
 	rm -rf redolist
 }
 
-# ======================================================================================================================================================================================== #
-# =====================================================================================PIPELINE BEAF====================================================================================== #
-# ======================================================================================================================================================================================== #
+	# ======================================================================================================================================================================================== #
+	# =====================================================================================PIPELINE BEAF====================================================================================== #
+	# ======================================================================================================================================================================================== #
 
 
 BEAF ()
@@ -795,17 +960,28 @@ BEAF ()
 		d1=`date -u "+%s"`
 		cd $address
 		echo -e "\n# Starting work in file $R1 with $Ref as reference, going to $Out\n"
-		ls *.bk > buckets_list.txt
-		if [ -s buckets_list.txt ];
+		if [ -d Buckets ]
 		then
-			echo "# Using previous buckets"
+			cd $address/Buckets
+			ls *.bk > buckets_list.txt
+			if [ -s buckets_list.txt ];
+			then
+				echo "# Using previous buckets"
+			else
+				cd $address
+				rm -rf Buckets
+				Trim
+				QAnConversion
+			fi
 		else
-			CopyFile
+			mkdir Buckets
 			Trim
+			QAnConversion
 		fi
 		BucketEngine
 		Filter1
 		PreLogGen
+		cd $address/Buckets
 		case $T1 in
 			G|g)
 				if [ -s hits ]
@@ -835,11 +1011,11 @@ BEAF ()
 					cd $address/OUTPUT/$Out
 					ls *.ft > list
 					for File in `cat list`; do
+						echo "# Working on file $File for $Out..."
 						cd $address/OUTPUT/$Out
 						BTime="0"
 						STime="0"
 						TTime="0"
-						echo "# Working on file $File for $Out..."
 						d4=`date -u "+%s"`
 						ppm2="0"
 						cntg="0"
@@ -880,6 +1056,7 @@ BEAF ()
 				cd $address
 			;;
 		esac
+		CleaningTheMess
 		PrintResults
 	done < config.kp
 	rm -rf *.kp *.nmb 
@@ -887,9 +1064,13 @@ BEAF ()
 	
 	ErrorRevision
 	
+	cd $address; 
+	CFLR="N"
+	rm -rf CR.step CR.mode
+
 	d99=`date -u "+%s"`
 	dtotal=$(echo "$d99 - $d0" |bc -l)
-	echo "BEAF1011.65 worked on files from config.file for $dtotal seconds."
+	echo "BEAF1011.65 worked for $dtotal seconds, ending at $(date "+%X")."
 }
 
 SoftBEAF ()
@@ -905,26 +1086,42 @@ SoftBEAF ()
 		d1=`date -u "+%s"`
 		cd $address
 		echo -e "\n# Starting work in file $R1 with $Ref as reference, going to $Out\n"
-		ls *.bk > buckets_list.txt
-		if [ -s buckets_list.txt ];
+		if [ -d Buckets ]
 		then
-			echo "# Using previous buckets"
+			cd $address/Buckets
+			ls *.bk > buckets_list.txt
+			if [ -s buckets_list.txt ];
+			then
+				echo "# Using previous buckets"
+			else
+				cd $address
+				rm -rf Buckets
+				CopyFile
+				SoftMergeRename
+			fi
 		else
+			mkdir Buckets
 			CopyFile
+			SoftMergeRename
 		fi
 		BucketEngine
 		Filter1
 		PreLogGen
+		cd $address/Buckets
 		case $T1 in
 			G|g)
 				if [ -s hits ]
 				then
 					G_Prepare_SPADES
 					G_SPADES2
-					cd $address/spades/bin
+					cd $address/spades/bin/assembly_$Out
+					gzip scaffolds.fasta
+					mv scaffolds.fasta.gz $address/OUTPUT/$Out
+					cd ..
 					rm -rf assembly_$Out
 					cd $address/OUTPUT/$Out
 					gzip hits.fasta
+					cntg=`grep ">" scaffolds.fasta.gz | wc -l`
 				else
 					echo "# The proposed analysis could not continue due to its lacking of homology between provided sequences and reference genome."
 					rm -rf hits
@@ -943,10 +1140,10 @@ SoftBEAF ()
 					ls *.ft > list
 					for File in `cat list`; do
 						cd $address/OUTPUT/$Out
+						echo "# Working on file $File for $Out..."
 						BTime="0"
 						STime="0"
 						TTime="0"
-						echo "# Working on file $File for $Out..."
 						d4=`date -u "+%s"`
 						ppm2="0"
 						cntg="0"
@@ -983,42 +1180,101 @@ SoftBEAF ()
 				cd $address
 			;;
 		esac
+		CleaningTheMess
 		PrintResults
 	done < config.kp
 	rm -rf *.kp *.nmb 
 	rm -rf par.time
 	
 	ErrorRevision
-	
+
+	cd $address; 
+	CFLR="N"
+	rm -rf CR.step CR.mode
+
 	d99=`date -u "+%s"`
 	dtotal=$(echo "$d99 - $d0" |bc -l)
-	echo "BEAF1011.65 worked on files from config.file for $dtotal seconds."
+	echo "BEAF1011.65 worked for $dtotal seconds."
 }
 
-ContinueBEAF ()
-{
-	echo "Ainda nao fizemos"	
-	#TODOSTUFF
-}
+	# ======================================================================================================================================================================================== #
+	# ========================================================================================MAIN============================================================================================ #
+	# ======================================================================================================================================================================================== #
 
 Main ()
 {
 	case $1 in
-		S|s|-s|-S|Soft|soft|-Soft|-soft)
+		S|s|-s|-S|Soft|soft|SOFT|-Soft|-soft)
+			echo "Soft" > CR.mode
 			SoftBEAF
 		;;
-		C|c|-c|-C|Continue|continue|-Continue|-continue)
-			ContinueBEAF
-		;;
 		*)
+			echo "FullVersion" > CR.mode
 			BEAF
 		;;
 	esac
 }
 
-echo "How do you want to run BEAF?
--c: continue a previous run that was abruptly interrupted
+	# ======================================================================================================================================================================================== #
+	# =====================================================================================PROGRAM START====================================================================================== #
+	# ======================================================================================================================================================================================== #
+
+
+address=$(dirname $(readlink -f $0))
+CFLR="N"
+if [ -s CR.step ]
+then
+	echo "A file from your previous run was detected, indicating that your last run of BEAF was interrupted before the program finished. BEAF is capable of continuing interrupted runs, but note that if you removed files from the BEAF folder after the program was abruptly interrupted, the new run can be disrupted. Do you want to continue from where the program stopped? (Y/N)"
+	read CFLR # continue from last run
+	case CFLR in
+		Y|y|Yes|yes|continue|Continue)
+			CFLR="Y"
+			echo "BEAF will continue from last run."
+			ver=`cat CR.mode`
+			Main $ver
+		;;
+		*)
+			CFLR="N"
+			rm -rf CR.step CR.mode; rm -rf *.kp; rm -rf Buckets
+			echo "BEAF will start a new run. 
+
+How do you want to run BEAF?
 -s: run Soft BEAF, a faster but simpler version of the BEAF software
 -b: run full version, with all utilities"
-read ver
-Main $ver
+			read ver
+			Main $ver
+		;;
+	esac
+else
+	if [ -s config.kp ]
+	then
+		echo "A file from your previous run was detected, indicating that your last run of BEAF was interrupted before the program finished. BEAF is capable of continuing interrupted runs, but note that if you removed files from the BEAF folder after the program was abruptly interrupted, the new run can be disrupted. Do you want to continue from where the program stopped? (Y/N)"
+		read CFLR # continue from last run
+		case CFLR in
+			Y|y|Yes|yes|continue|Continue)
+				CFLR="Y"
+				echo "1" > CR.step
+				echo "BEAF will continue from last run."
+				ver=`cat CR.mode`
+				Main $ver
+			;;
+			*)
+				CFLR="N"
+				rm -rf CR.step CR.mode; rm -rf *.kp; rm -rf Buckets
+				echo "BEAF will start a new run. 
+	
+	How do you want to run BEAF?
+	-s: run Soft BEAF, a faster but simpler version of the BEAF software
+	-b: run full version, with all utilities"
+				read ver
+				Main $ver
+			;;
+		esac
+	else
+		echo "How do you want to run BEAF?
+-s: run Soft BEAF, a faster but simpler version of the BEAF software
+-b: run full version, with all utilities"
+		read ver
+		Main $ver
+	fi
+fi
