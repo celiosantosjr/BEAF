@@ -32,6 +32,7 @@ then
 	gunzip *.gz
 	cd ..
 	chmod u+x BEAF.sh
+	chmod u+x optmizer.sh
 	echo "########### Finished ###########"
 	echo "PLEASE USE THE FOLLOWING COMMANDS:
 
