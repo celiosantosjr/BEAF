@@ -8,7 +8,8 @@ Install all of the dependencies on Ubuntu:
 	Install FastQC in /bin path (Available in <http://www.bioinformatics.babraham.ac.uk/projects/download.html>)
 
 	After previously informed installations, type:
-
+	
+	$ chmod u+x install.sh
 	$ ./install.sh
 
 During installation it will be required your user password, since it should be done as superuser.
