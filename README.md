@@ -30,17 +30,27 @@ It will spend by average in a machine of 16Gb-RAM and 4 CPUs almost 0.5-1h. Resu
 
 Make a config.file file containing 7 columns, respectively: T1, T2, R1, R2, Ref, Subref and Out.
 On the first column (T1), use 'G' to analyse genomes, 'P' to analyse proteins and 'N' with nucleotide sequences.
-On the second column (T2), depending on the format of the metagnomic data, you may use 'R', for pair-end fastq files; 'I', for a interleaved fastq file; or 'F', for a interleaved fasta file. Regardless of the format you're using, all files must be compressed with gzip (.gz).
-On the third column (R1), you must give the complete path to your file (R1 file in the case of pair-end, interleaved in the other two cases), from your main folder to the file itself (example: home/usr/Desktop/BEAF-master/R1_trimmed.fastq.gz).
-On the fourth column (R2), in the case of paired end files, you must give the complete path to the second file (R2), as explained above. For interleaved files, use 'NA' instead.
-On the fifth column (Ref), use the name of the reference genome file (not compressed in fasta format) or protein/gene databank (this first database should be less specific and be composed by a large number of sequences, helping program to identify besides highly homologous reads, less homologous ones too) file in the Reference folder. If there will be a Reference for protein/gene databanks, you can also enter instead just fasta format, other file formats, like: UDB or blastdb.
-On the sixth column (SubRef), use the path to the folder containing subreferences for protein families, if any. If using genome, use 'NA' instead.
-On the seventh column (Out), use the desired name for the output folder generated from that file (example: Metaspot1_Ecoli). Don't use spaces nor slashes in the name.
+On the second column (T2), depending on the format of the metagnomic data, you may use 'R', for pair-end fastq files; 'I', for 
+a interleaved fastq file; or 'F', for a interleaved fasta file. Regardless of the format you're using, all files must be
+compressed with gzip (.gz).
+On the third column (R1), you must give the complete path to your file (R1 file in the case of pair-end, interleaved in the 
+other two cases), from your main folder to the file itself (example: home/usr/Desktop/BEAF-master/R1_trimmed.fastq.gz).
+On the fourth column (R2), in the case of paired end files, you must give the complete path to the second file (R2), as 
+explained above. For interleaved files, use 'NA' instead.
+On the fifth column (Ref), use the name of the reference genome file (not compressed in fasta format) or protein/gene databank
+(this first database should be less specific and be composed by a large number of sequences, helping program to identify besides
+highly homologous reads, less homologous ones too) file in the Reference folder. If there will be a Reference for protein/gene
+databanks, you can also enter instead just fasta format, other file formats, like: UDB or blastdb.
+On the sixth column (SubRef), use the path to the folder containing subreferences for protein families, if any. If using genome,
+use 'NA' instead.
+On the seventh column (Out), use the desired name for the output folder generated from that file (example: Metaspot1_Ecoli).
+Don't use spaces nor slashes in the name.
 Be careful to not leave any empty lines in final file.
 
 Example:
 
-N	I	/home/usr/Desktop/BEAF1011.65_master/Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	DNA_pol.fasta	DNA_pol	1D
+N	I	/home/usr/Desktop/BEAF1011.65_master/Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA
+DNA_pol.fasta	DNA_pol	1D
 
 -Execute the batch script: 
 
@@ -48,7 +58,11 @@ N	I	/home/usr/Desktop/BEAF1011.65_master/Test_sample/Alistipes_putredinis_DSM_17
 
 - Changing parameters of run
 
-User can change every run parameter directly in shell script file, since blast/usearch identity or coverage parameters to keep or not keep formatted reference databases. You can choose between blastn and megablast when finding against gene families, it could in some cases speed up the process. All possible changes are indicated over script, but unless you have a good notion of shell language we strongly advice to not change any parameter. If some parameters are changed, indicates in your "Material and Methods" section the new parameters. If nothing was changed just cite these parameters as "default".
+User can change every run parameter directly in shell script file, since blast/usearch identity or coverage parameters to keep or
+not keep formatted reference databases. You can choose between blastn and megablast when finding against gene families, it could
+in some cases speed up the process. All possible changes are indicated over script, but unless you have a good notion of shell
+language we strongly advice to not change any parameter. If some parameters are changed, indicates in your "Material and Methods"
+section the new parameters. If nothing was changed just cite these parameters as "default".
 
 - Results 
 
@@ -85,13 +99,18 @@ Results are given inside OUTPUT folder. In each output, previously designed by u
 
 # Speeding up the process
 
-(1) To speed up all process, you can disabilitate some functions over the script, this will be done running script soft_BEAF10.11.65.sh instead BEAF.sh. - This pipeline does not make the fastq file trimming, quality test of fastq files, assembly retry (it would take small kmers scenario which can take more time instead for genomes binning), QUAST assessment or ORFs prediction;
+(1) To speed up all process, you can disabilitate some functions over the script, this will be done running script
+soft_BEAF10.11.65.sh instead BEAF.sh. - This pipeline does not make the fastq file trimming, quality test of fastq files,
+assembly retry (it would take small kmers scenario which can take more time instead for genomes binning), QUAST assessment or
+ORFs prediction;
 
 	$ cd /PATHWAY_TO_HERE/BEAF-master
 	$ ./BEAF.sh
 	Option -s
 
-(2) Alternativelly, you can run our helper script named optimizer.sh, already included. We strongly recommend run this script when running genomes binning function. It will request user password, since it works as a constant renicer device. It should be run in a new terminal, so your system will work with two independent terminals.
+(2) Alternativelly, you can run our helper script named optimizer.sh, already included. We strongly recommend run this script
+when running genomes binning function. It will request user password, since it works as a constant renicer device. It should be
+run in a new terminal, so your system will work with two independent terminals.
 
 	$(1) cd /PATHWAY_TO_HERE/BEAF-master
 	$(1) ./BEAF.sh
@@ -103,7 +122,9 @@ Results are given inside OUTPUT folder. In each output, previously designed by u
 
 # Contact and License
 
-All bugs should be reported to: celio.diasjunior@gmail.com. Please cite us: "Santos-Júnior, CD et al. BEAF: An automated pipeline to referenced genome and protein or gene families binning and assembly of next generation sequencing data. (Under publishing)". Rights between any third party software are not in claim, they continue under rights of original distribution.
+All bugs should be reported to: celio.diasjunior@gmail.com. Please cite us: "Santos-Júnior, CD et al. BEAF: An automated pipeline
+to referenced genome and protein or gene families binning and assembly of next generation sequencing data. (Under publishing)".
+Rights between any third party software are not in claim, they continue under rights of original distribution.
 
 ```
 
