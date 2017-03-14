@@ -486,6 +486,7 @@ FastaFile.close()" > countsize.py
 		rm -rf hits.fasta each list
 	fi
 	cd $address; echo "8" > CR.step; CFLR="N"
+fi
 }
 
 PreLogGen ()
