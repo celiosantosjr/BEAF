@@ -429,63 +429,45 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "6" ]]; then echo "******S
 			esac
 			rm -rf *.udb; rm -rf udblist; rm -rf hits; rm -rf *.m7; rm -rf buckets_search.txt
 		;;
+		16S|16s|16) 
+			echo "# Starting searches..."
+			cd $address/Reference_seqs
+			cp Triple16S.udb $address/Buckets
+			cd $address/Buckets
+			rm -rf *.m7
+			case $Keep in
+				Y|y)
+					for buck in `cat buckets_search.txt`; do
+						if [ -s $buck.m8 ]
+						then
+							touch $buck.m8
+						else
+							echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck/.bk/}/$buckets"
+							usearch -usearch_global $buck -db Triple16S.udb -strand both -id 0.95 -evalue 1e-20 -matched $buck.m7 > usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
+							rm -rf usearch.tmp
+							mv $buck.m7 $buck.m8
+							sed -i -e 1,1d buckets_search.txt
+						fi
+					done
+				;;
+				*)
+					for buck in `cat buckets_search.txt`; do
+						echo -en "\r"; echo -e "# Searching against reference $Ref and removing buckets... ${buck/.bk/}/$buckets"
+						usearch -usearch_global $buck -db Triple16S.udb -strand both -id 0.95 -evalue 1e-20 -matched $buck.m7 > usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
+						rm -rf usearch.tmp
+						mv $buck.m7 $buck.m8
+						rm -rf $buck
+						touch $buck
+						sed -i -e 1,1d buckets_search.txt
+					done
+					rm -rf *.bk
+				;;
+			esac
+			rm -rf *.udb; rm -rf *.m7; rm -rf buckets_search.txt
+		;;
 	esac
 	cat *.m8 > hits
 	cd $address; echo "7" > CR.step; CFLR="N"
-fi
-}
-
-Chimeras ()
-{
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "7" ]]; then echo "******Skipping dechimerization"; else
-	cd $address/Buckets
-	if [[ `cat CR.mode` == "Soft" ]]
-	then 
-		mv hits.fasta hits 
-	else
-		if [ -s each ]
-		then
-			touch each
-		else
-			echo "import sys
-from Bio import SeqIO
-
-FastaFile = open(sys.argv[1], 'rU')
-
-for rec in SeqIO.parse(FastaFile, 'fasta'):
-    name = rec.id
-    seq = rec.seq
-    seqLen = len(rec)
-    print name, seqLen
-
-FastaFile.close()" > countsize.py
-			chmod +x countsize.py
-			python countsize.py hits.fasta > each1
-			rm -rf countsize.py
-			sed 's/ /;size=/g' each1 > each2
-			sed 's/^/>/' each2 > each
-			rm -rf each1 each2
-		fi
-		if [ -s list ]
-		then
-			touch list
-		else
-			grep ">" hits.fasta > list
-		fi
-		hits=`cat list | wc -l`
-		counter="0"
-		for header in `cat list`
-		do
-			new=`grep "$header" each`
-			echo -en "\r"; echo -en "Calculating size of each hit ($counter/$hits)"
-			sed -i 's/'"$header"'/'"$new"'/' hits.fasta
-			((counter+=1))
-			sed -i 1,1d list
-		done
-		usearch -uchime_denovo hits.fasta -nonchimeras hits
-		rm -rf hits.fasta each list
-	fi
-	cd $address; echo "8" > CR.step; CFLR="N"
 fi
 }
 
@@ -971,6 +953,122 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "21" && `cat CR.step` != "
 fi
 }
 
+Chimeras ()
+{
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "12" ]]; then echo "******Skipping Genome Analysis"; else
+	cd $address/spades/bin/assembly_$Out
+	if [ -s scaffolds.fasta ]
+	then
+		echo "# Analyzing 16S...\n"
+		cp -r scaffolds.fasta $address/OUTPUT/$Out
+		cd $address/OUTPUT/$Out
+		awk 'BEGIN{RS=">";ORS=""}length($0)>500{print ">"$0}' scaffolds.fasta > 16S.fasta
+		if [ -s each ]
+		then
+			touch each
+		else
+			echo "import sys
+from Bio import SeqIO
+
+FastaFile = open(sys.argv[1], 'rU')
+
+for rec in SeqIO.parse(FastaFile, 'fasta'):
+    name = rec.id
+    seq = rec.seq
+    seqLen = len(rec)
+    print name, seqLen
+
+FastaFile.close()" > countsize.py
+			chmod +x countsize.py
+			python countsize.py 16S.fasta > each1
+			rm -rf countsize.py
+			sed 's/ /;size=/g' each1 > each2
+			sed 's/^/>/' each2 > each
+			rm -rf each1 each2
+		fi
+		if [ -s list ]
+		then
+			touch list
+		else
+			grep ">" 16S.fasta > list
+		fi
+		hits=`cat list | wc -l`
+		counter="0"
+		for header in `cat list`
+		do
+			new=`grep "$header" each`
+			echo -en "\r"; echo -en "Calculating size of each hit ($counter/$hits)"
+			sed -i 's/'"$header"'/'"$new"'/' 16S.fasta
+			((counter+=1))
+			sed -i 1,1d list
+		done
+		usearch -uchime_denovo 16S.fasta -nonchimeras 16S
+		rm -rf 16S.fasta each list
+	else
+		echo "# The proposed analysis of $Out could not continue due to problems in SPADES assembly."
+	fi
+	cd $address; echo "13" > CR.step; CFLR="N"
+fi
+}
+
+RDNA_Filter ()
+{
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "13" ]]; then echo "******Skipping Genome Analysis"; else
+	cd $address/OUTPUT/$Out
+	if [ -s 16S.nm ]
+	then
+		touch 16S.nm
+	else
+		rm -rf 16S.tsv 16S.nm7 16S.nm8 16S.m7 16S.m8 16S.nm8 16S.seq
+		cat 16S | awk '/^>/{print ">" ++i; next} {print}' > 16S.seq
+		usearch -usearch_local 16S.seq -db $address/Reference_seqs/nr100_green.cur.udb -strand both -id 0.95 -evalue 1e-20 -maxhits 1 -matched 16S.m7 -nonmatched 16S.nm7 -blast6out 16S.tsv > usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
+		rm -rf usearch.tmp
+		cat 16S.nm7 | sed 's/>/>16S_Unknown_/' > 16S.nm8
+		rm -rf 16S.nm7
+		mv 16S.nm8 16S.nm
+	fi
+	counter="0"
+	OTU=`cat 16S.tsv | wc -l`
+	if [ -s 16S.table ]
+	then 
+		touch 16S.table
+	else
+		cp 16S.tsv 16S.table
+	fi
+	while read B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12; do
+		name=`grep "$B2" $address/Reference_seqs/GreenList | sed 's/*.k_/k_/'`
+		new="$B1|ID_$B3|eval_$B11|$name"
+		echo -en "\r"; echo -en "Renaming ($counter/$OTU)"
+		sed -i 's/'"$B1"'/'"$new"'/' 16S.m7
+		((counter+=1))
+		sed -i 1,1d 16S.table
+	done < 16S.table
+	cat 16S.m7 | sed 's/>/>16S_/' > 16S.m8
+	cat 16S.m8 16S.nm8 > 16S.fasta 
+	rm -rf 16S 16S.table 16S.m7 16S.m8 16S.nm8
+	cd $address; echo "14" > CR.step; CFLR="N"
+fi
+}
+
+RDNA_A ()
+{
+	cd $address/OUTPUT/$Out
+	grep ">" 16S.fasta | sed 's/.*k_/k_/' | sed 's/>16S_Unknown/Unkwnown/' | sed 's/s_*//' > 16S.count
+	while read level letter; do
+		cat 16S.count | sed 's/;'"*.$letter"'_//' | sed 's/;.*//' | uniq > OTUlist_$level
+		for taxon in `cat OTUlist_$level` ; do
+			OTU=`grep "$taxon" 16S.count | wc -l`
+			echo -e "$taxon\t$OTU" > $taxon.$letter
+		done
+		cat *.$letter > $level.count
+	done < "kingdom k
+phylum	p
+class	c
+order	o
+genus	g"
+
+}
+
 CleaningTheMess ()
 {
 cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "21" && `cat CR.step` != "22"  && `cat CR.step` != "13" ]]; then echo "******Skipping Self Organizing Module"; else
@@ -1028,6 +1126,9 @@ Subref_database|Hits_seq.|Ppm|Contigs|ORFs|Blast_Time|SPADES_Time|Total_SubRef_T
 			mv cont_log* $address; mv ORF_log* $address
 			rm -rf log.header
 		;;
+		16S|16s|16)
+			cd $address/OUTPUT/$Out
+			
 	esac
 	rm -rf $address/spades/bin/assembly_*
 	cd $address/OUTPUT/$Out
@@ -1417,6 +1518,24 @@ BEAF ()
 					echo "22" > CR.step
 				fi
 				cd $address
+			;;
+			16S|16s|16)
+				if [ -s hits ]
+				then
+					G_Prepare_SPADES
+					G_SPADES1
+					G_SPADES2
+					Chimeras
+					cd $address/spades/bin
+					rm -rf assembly_$Out
+					cd $address/OUTPUT/$Out
+					gzip hits.fasta
+					RDNA_Filter
+				else
+					echo "# The proposed analysis could not continue due to its lacking of homology between provided sequences and reference genome."
+					rm -rf hits
+					echo "12" > CR.step
+				fi
 			;;
 		esac
 		CleaningTheMess
