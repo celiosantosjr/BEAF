@@ -112,12 +112,15 @@ TimeHeader ()
 {
 cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "2" ]]; then echo "******In this module, time is not measured"; else
 	cd $address
-	rm -rf header; rm -rf time.log2
+	if [ -s Log.tsv2 ]
+	then
+		mv Log.tsv2 Log.tsv3
+	fi
 	echo "_________________________________________________________________________________________________________
 	Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs|ORFs" > header
-	cat time.log header > time.log2
-	rm -rf header time.log
-	mv time.log2 time.log
+	cat Log.tsv header > Log.tsv2
+	rm -rf header Log.tsv
+	mv Log.tsv2 Log.tsv
 	cd $address; echo "3" > CR.step; CFLR="N"
 fi
 }
@@ -126,12 +129,15 @@ SoftTimeHeader ()
 {
 cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "2" ]]; then echo "******In this module, time is not measured"; else
 	cd $address
-	rm -rf header; rm -rf time.log2
+	if [ -s Log.tsv2 ]
+	then
+		mv Log.tsv2 Log.tsv3
+	fi
 	echo "_________________________________________________________________________________________________________
 	Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs" > header
-	cat time.log header > time.log2
-	rm -rf header time.log
-	mv time.log2 time.log
+	cat Log.tsv header > Log.tsv2
+	rm -rf header Log.tsv
+	mv Log.tsv2 Log.tsv
 	cd $address; echo "3" > CR.step; CFLR="N"
 fi
 }
@@ -429,42 +435,6 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "6" ]]; then echo "******S
 			esac
 			rm -rf *.udb; rm -rf udblist; rm -rf hits; rm -rf *.m7; rm -rf buckets_search.txt
 		;;
-		16S|16s|16) 
-			echo "# Starting searches..."
-			cd $address/Reference_seqs
-			cp Triple16S.udb $address/Buckets
-			cd $address/Buckets
-			rm -rf *.m7
-			case $Keep in
-				Y|y)
-					for buck in `cat buckets_search.txt`; do
-						if [ -s $buck.m8 ]
-						then
-							touch $buck.m8
-						else
-							echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck/.bk/}/$buckets"
-							usearch -usearch_global $buck -db Triple16S.udb -strand both -id 0.95 -evalue 1e-20 -matched $buck.m7 > usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
-							rm -rf usearch.tmp
-							mv $buck.m7 $buck.m8
-							sed -i -e 1,1d buckets_search.txt
-						fi
-					done
-				;;
-				*)
-					for buck in `cat buckets_search.txt`; do
-						echo -en "\r"; echo -e "# Searching against reference $Ref and removing buckets... ${buck/.bk/}/$buckets"
-						usearch -usearch_global $buck -db Triple16S.udb -strand both -id 0.95 -evalue 1e-20 -matched $buck.m7 > usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
-						rm -rf usearch.tmp
-						mv $buck.m7 $buck.m8
-						rm -rf $buck
-						touch $buck
-						sed -i -e 1,1d buckets_search.txt
-					done
-					rm -rf *.bk
-				;;
-			esac
-			rm -rf *.udb; rm -rf *.m7; rm -rf buckets_search.txt
-		;;
 	esac
 	cat *.m8 > hits
 	cd $address; echo "7" > CR.step; CFLR="N"
@@ -473,7 +443,7 @@ fi
 
 PreLogGen ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "7" && `cat CR.step` != "8" ]]; then echo "******Skipping generation of pre-log"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "7" ]]; then echo "******Skipping generation of pre-log"; else
 	cd $address/Buckets
 	echo "## Calculating statistics..."
 	hits=`grep ">" hits | wc -l`
@@ -505,13 +475,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "7" && `cat CR.step` != "8
 	cntg="0"
 	echo "$cntg" > $address/OUTPUT/$Out/cntg.nmb
 	rm -rf *.txt; rm -rf *.m8
-	cd $address; echo "9" > CR.step; CFLR="N"
+	cd $address; echo "8" > CR.step; CFLR="N"
 fi
 }
 
 G_Prepare_SPADES ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "9" ]]; then echo "******Skipping Assembly Preparation Module"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "8" ]]; then echo "******Skipping Assembly Preparation Module"; else
 	cd $address/Buckets
 	echo "# Making contigs for $Out..."
 	cp hits hits.fasta
@@ -519,23 +489,23 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "9" ]]; then echo "******S
 	mv hits.fasta $address/OUTPUT/$Out
 	cd $address/spades/bin
 	rm -rf assembly_*
-	cd $address; echo "10" > CR.step; CFLR="N"
+	cd $address; echo "9" > CR.step; CFLR="N"
 fi
 }
 
 G_SPADES1 ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "10" ]]; then echo "******Skipping Assembly Module with High Kmers"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "9" ]]; then echo "******Skipping Assembly Module with High Kmers"; else
 	cd $address/spades/bin
 	python spades.py -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s hits.fasta -o assembly_$Out > logspades.txt
 	rm -rf hits.fasta logspades.txt
-	cd $address; echo "11" > CR.step; CFLR="N"
+	cd $address; echo "10" > CR.step; CFLR="N"
 fi
 }
 
 G_SPADES2 ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "10" && `cat CR.step` != "11" ]]; then echo "******Skipping Assembly Mode with Lower Kmers"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "9" && `cat CR.step` != "10" ]]; then echo "******Skipping Assembly Mode with Lower Kmers"; else
 	if [[ -d $address/spades/bin/assembly_$Out ]]
 	then
 		cd $address/spades/bin/assembly_$Out
@@ -556,13 +526,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "10" && `cat CR.step` != "
 		python spades.py -k 11,15,21,25,31,35,41,45,51 --only-assembler -s hits.fasta -o assembly_$Out > logspades.txt
 		rm -rf hits.fasta logspades.txt
 	fi
-	cd $address; echo "12" > CR.step; CFLR="N"
+	cd $address; echo "11" > CR.step; CFLR="N"
 fi
 }
 
 GA ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "12" ]]; then echo "******Skipping Genome Analysis"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "11" ]]; then echo "******Skipping Genome Analysis"; else
 	cd $address/OUTPUT/$Out
 	if [[ -s assessment.tar.gz ]]
 	then
@@ -613,13 +583,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "12" ]]; then echo "******
 	echo "$cntg" > $address/OUTPUT/$Out/cntg.nmb
 	cd $address/spades/bin
 	rm -rf assembly_$Out
-	cd $address; echo "13" > CR.step; CFLR="N"
+	cd $address; echo "12" > CR.step; CFLR="N"
 fi
 }
 
 SoftGA ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "12" ]]; then echo "******Skipping calculation of contigs and output compression"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "11" ]]; then echo "******Skipping calculation of contigs and output compression"; else
 	cd $address/spades/bin/assembly_$Out
 	gzip scaffolds.fasta
 	mv scaffolds.fasta.gz $address/OUTPUT/$Out
@@ -637,13 +607,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "12" ]]; then echo "******
 	ORFs="[Warning: ORFs are not calculated in Soft version]"
 	echo "$ORFs" > $address/OUTPUT/$Out/ORFs.nmb
 	gzip scaffolds.fasta
-	cd $address; echo "13" > CR.step; CFLR="N"
+	cd $address; echo "12" > CR.step; CFLR="N"
 fi
 }
 
 BlastDBGen ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "9" ]]; then echo "******Skipping Preparation and generation of Blast Databases"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "8" ]]; then echo "******Skipping Preparation and generation of Blast Databases"; else
 	cd $address/Buckets
 	cp hits $address/Reference_seqs/$SubRef
 	cd $address/Reference_seqs/$SubRef
@@ -672,13 +642,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "9" ]]; then echo "******S
 			ls *.nsq | sed 's/.nsq//' | sort -k1,1 > BlastDBlist
 		;;
 	esac
-	cd $address; echo "14" > CR.step; CFLR="N"
+	cd $address; echo "9" > CR.step; CFLR="N"
 fi
 }
 
 Filter2 ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "14" ]]; then echo "******Skipping Second Filtering System"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "9" ]]; then echo "******Skipping Second Filtering System"; else
 	cd $address/Reference_seqs/$SubRef
 	for sub in `cat BlastDBlist`; do
 		echo "# Searching against $sub..."
@@ -702,13 +672,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "14" ]]; then echo "******
 		sed -i -e 1,1d BlastDBlist
 	done
 	rm -rf BlastDBlist; rm -rf *.tmp
-	cd $address; echo "15" > CR.step; CFLR="N"
+	cd $address; echo "10" > CR.step; CFLR="N"
 fi
 }
 
 SaveDBs ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "15" ]]; then echo "******Skipping the process of saving/removing databases"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "10" ]]; then echo "******Skipping the process of saving/removing databases"; else
 	cd $address/Reference_seqs/$SubRef
 	case $ans in
 		Y|y|YES|Yes|yes)
@@ -745,13 +715,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "15" ]]; then echo "******
 			rm -rf glist
 		;;
 	esac
-	cd $address; echo "16" > CR.step; CFLR="N"
+	cd $address; echo "11" > CR.step; CFLR="N"
 fi
 }
 
 Extraction ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "16" ]]; then echo "******Skipping Extraction Module"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "11" ]]; then echo "******Skipping Extraction Module"; else
 	cd $address/Reference_seqs/$SubRef
 	echo "# Arranging data..."
 	mv *.ft $address/OUTPUT/$Out
@@ -829,13 +799,13 @@ print \"the Subset fasta file\", subsetName, \"is now created\"" > ext.py
 	mkdir contigs
 	mkdir blast_hits
 	mkdir ORFs
-	cd $address; echo "17" > CR.step; CFLR="N"
+	cd $address; echo "12" > CR.step; CFLR="N"
 fi
 }
 
 PN_Prepare_SPADES ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "17" ]]; then echo "******Skipping Assembly Preparation"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "12" ]]; then echo "******Skipping Assembly Preparation"; else
 	cd $address/OUTPUT/$Out
 	rm -rf *.rev; rm -rf *.hits; rm -rf *.rev-hits
 	cut -f 1 $File > $File.rev
@@ -844,6 +814,9 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "17" ]]; then echo "******
 	if [ -s $File.rev-hits ]
 	then
 		sq=`grep ">" $File.rev-hits | wc -l`
+		mv $File.rev-hits $File.rev-hits.fasta
+		cd-hit -i $File.rev-hits.fasta -o $File.rev-hits -c 1.00 -aS 1.0 -g 1 -d 0 -M 0 -T 0 -n 5 > cdhitlog
+		rm -rf $File.rev-hits.fasta $File.rev-hits.clstr cdhitlog
 	else
 		sq="0"
 		ppm2="0"
@@ -856,24 +829,24 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "17" ]]; then echo "******
 	mv $File $address/OUTPUT/$Out/blast_hits
 	cd $address/spades/bin
 	rm -rf $address/spades/bin/assembly_*
-	cd $address; echo "18" > CR.step; CFLR="N"
+	cd $address; echo "13" > CR.step; CFLR="N"
 fi
 }
 
 PN_SPADES1 ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "18" ]]; then  echo "Skipping Assembly with High Kmers"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "13" ]]; then  echo "Skipping Assembly with High Kmers"; else
 	cd $address/spades/bin
 	rm -rf assembly_*
 	python spades.py -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $File.fasta -o assembly_$Out_$File > logspades.txt
 	rm -rf logspades.txt
-	cd $address; echo "19" > CR.step; CFLR="N"
+	cd $address; echo "14" > CR.step; CFLR="N"
 fi
 }
 
 PN_SPADES2 ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "18" && `cat CR.step` != "19" ]]; then echo "******Skipping Assembly with Low Kmers"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "13" && `cat CR.step` != "14" ]]; then echo "******Skipping Assembly with Low Kmers"; else
 	cd $address/spades/bin/assembly_$Out_$File
 	if [ -s scaffolds.fasta ]
 	then
@@ -896,13 +869,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "18" && `cat CR.step` != "
 		python spades.py -k 9,11,13,15,17,19,21,31 --only-assembler -s $File.fasta -o assembly_$Out_$File > logspades.txt
 		rm -rf logspades.txt
 	fi
-	cd $address; echo "20" > CR.step; CFLR="N"
+	cd $address; echo "15" > CR.step; CFLR="N"
 fi
 }
 
 PNA ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "20" ]]; then echo "******Skipping calculation of contigs"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "15" ]]; then echo "******Skipping calculation of contigs"; else
 	cd $address/spades/bin/assembly_$Out_$File
 	if [ -s scaffolds.fasta ]
 	then
@@ -920,13 +893,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "20" ]]; then echo "******
 	cd $address/spades/bin
 	rm -rf assembly_$Out_$File; rm -rf $File.fasta
 	cd $address/OUTPUT/$Out 
-	cd $address; echo "21" > CR.step; CFLR="N"
+	cd $address; echo "16" > CR.step; CFLR="N"
 fi
 }
 
 PNORFs ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "21" && `cat CR.step` != "13" ]]; then echo "******Skipping ORF finding process"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "16" ]]; then echo "******Skipping ORF finding process"; else
 	cd $address/OUTPUT/$Out/contigs
 	if [ -s contigs.$File.fasta ]
 	then
@@ -949,25 +922,23 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "21" && `cat CR.step` != "
 		echo "A total of $ORFs ORFs were found for file $File, from $cntg contigs"
 	fi
 	echo "$ORFs" > $address/OUTPUT/$Out/ORFs.nmb
-	cd $address; echo "22" > CR.step; CFLR="N"
+	cd $address; echo "17" > CR.step; CFLR="N"
 fi
 }
 
-Chimeras ()
+PN_CalcStats ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "12" ]]; then echo "******Skipping Genome Analysis"; else
-	cd $address/spades/bin/assembly_$Out
-	if [ -s scaffolds.fasta ]
-	then
-		echo "# Analyzing 16S...\n"
-		cp -r scaffolds.fasta $address/OUTPUT/$Out
-		cd $address/OUTPUT/$Out
-		awk 'BEGIN{RS=">";ORS=""}length($0)>500{print ">"$0}' scaffolds.fasta > 16S.fasta
-		if [ -s each ]
-		then
-			touch each
-		else
-			echo "import sys
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "17" ]]; then echo "******Skipping Calculation of Statistics for Contigs and ORFs"; else
+	AvgSizeCntg="0"
+	TotalSizeCntg="0"
+	StdDevCntg="0"
+	AvgSizeORF="0"
+	TotalSizeORF="0"
+	StdDevORF="0"
+	MaxCntg="0"
+	MaxORF="0"
+	cd $address/OUTPUT
+	echo "import sys
 from Bio import SeqIO
 
 FastaFile = open(sys.argv[1], 'rU')
@@ -979,99 +950,46 @@ for rec in SeqIO.parse(FastaFile, 'fasta'):
     print name, seqLen
 
 FastaFile.close()" > countsize.py
-			chmod +x countsize.py
-			python countsize.py 16S.fasta > each1
-			rm -rf countsize.py
-			sed 's/ /;size=/g' each1 > each2
-			sed 's/^/>/' each2 > each
-			rm -rf each1 each2
-		fi
-		if [ -s list ]
-		then
-			touch list
-		else
-			grep ">" 16S.fasta > list
-		fi
-		hits=`cat list | wc -l`
-		counter="0"
-		for header in `cat list`
-		do
-			new=`grep "$header" each`
-			echo -en "\r"; echo -en "Calculating size of each hit ($counter/$hits)"
-			sed -i 's/'"$header"'/'"$new"'/' 16S.fasta
-			((counter+=1))
-			sed -i 1,1d list
-		done
-		usearch -uchime_denovo 16S.fasta -nonchimeras 16S
-		rm -rf 16S.fasta each list
-	else
-		echo "# The proposed analysis of $Out could not continue due to problems in SPADES assembly."
-	fi
-	cd $address; echo "13" > CR.step; CFLR="N"
-fi
-}
-
-RDNA_Filter ()
-{
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "13" ]]; then echo "******Skipping Genome Analysis"; else
-	cd $address/OUTPUT/$Out
-	if [ -s 16S.nm ]
+	chmod +x countsize.py
+	cd $address/OUTPUT/$Out/contigs
+	if [ -s contigs.$File.fasta ]
 	then
-		touch 16S.nm
-	else
-		rm -rf 16S.tsv 16S.nm7 16S.nm8 16S.m7 16S.m8 16S.nm8 16S.seq
-		cat 16S | awk '/^>/{print ">" ++i; next} {print}' > 16S.seq
-		usearch -usearch_local 16S.seq -db $address/Reference_seqs/nr100_green.cur.udb -strand both -id 0.95 -evalue 1e-20 -maxhits 1 -matched 16S.m7 -nonmatched 16S.nm7 -blast6out 16S.tsv > usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
-		rm -rf usearch.tmp
-		cat 16S.nm7 | sed 's/>/>16S_Unknown_/' > 16S.nm8
-		rm -rf 16S.nm7
-		mv 16S.nm8 16S.nm
+		rm -rf *.count; rm -rf *.cntg; rm -rf $File.cntg.sizes
+		cp contigs.$File.fasta contigs.$File.count
+		sed -i 's/>.*/>size/g' contigs.$File.count
+		python $address/OUTPUT/countsize.py contigs.$File.count > $File.cntg
+		rm -rf contigs.$File.count
+		grep "size" $File.cntg | sed 's/size //g'> $File.cntg.sizes
+		rm -rf $File.cntg
+		AvgSizeCntg=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $File.cntg.sizes`
+		TotalSizeCntg=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $File.cntg.sizes`
+		StdDevCntg=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $File.cntg.sizes`
+		MaxCntg=`awk 'BEGIN{x=0};$0>x{x=$0};END{print x}' $File.cntg.sizes`
+		cd $address/OUTPUT/$Out/ORFs
+		if [ -s ORFs.$File.fna ]
+		then
+			rm -rf *.count; rm -rf *.cntg; rm -rf $File.ORF.sizes
+			cp ORFs.$File.fna $File.count
+			sed -i 's/>.*/>size/g' $File.count
+			python $address/OUTPUT/countsize.py $File.count > $File.ORF
+			rm -rf $File.count
+			grep "size" $SubRef.ORF | sed 's/size //g' > $File.ORF.sizes
+			rm -rf $File.ORF
+			AvgSizeORF=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $File.ORF.sizes`
+			TotalSizeORF=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $File.ORF.sizes`
+			StdDevORF=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $File.ORF.sizes`
+			MaxORF=`awk 'BEGIN{x=0};$0>x{x=$0};END{print x}' $File.ORF.sizes`
+		fi
 	fi
-	counter="0"
-	OTU=`cat 16S.tsv | wc -l`
-	if [ -s 16S.table ]
-	then 
-		touch 16S.table
-	else
-		cp 16S.tsv 16S.table
-	fi
-	while read B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12; do
-		name=`grep "$B2" $address/Reference_seqs/GreenList | sed 's/*.k_/k_/'`
-		new="$B1|ID_$B3|eval_$B11|$name"
-		echo -en "\r"; echo -en "Renaming ($counter/$OTU)"
-		sed -i 's/'"$B1"'/'"$new"'/' 16S.m7
-		((counter+=1))
-		sed -i 1,1d 16S.table
-	done < 16S.table
-	cat 16S.m7 | sed 's/>/>16S_/' > 16S.m8
-	cat 16S.m8 16S.nm8 > 16S.fasta 
-	rm -rf 16S 16S.table 16S.m7 16S.m8 16S.nm8
-	cd $address; echo "14" > CR.step; CFLR="N"
+	cd $address/OUTPUT
+	rm -rf countsize.py
+	cd $address; echo "18" > CR.step; CFLR="N"
 fi
-}
-
-RDNA_A ()
-{
-	cd $address/OUTPUT/$Out
-	grep ">" 16S.fasta | sed 's/.*k_/k_/' | sed 's/>16S_Unknown/Unkwnown/' | sed 's/s_*//' > 16S.count
-	while read level letter; do
-		cat 16S.count | sed 's/;'"*.$letter"'_//' | sed 's/;.*//' | uniq > OTUlist_$level
-		for taxon in `cat OTUlist_$level` ; do
-			OTU=`grep "$taxon" 16S.count | wc -l`
-			echo -e "$taxon\t$OTU" > $taxon.$letter
-		done
-		cat *.$letter > $level.count
-	done < "kingdom k
-phylum	p
-class	c
-order	o
-genus	g"
-
 }
 
 CleaningTheMess ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "21" && `cat CR.step` != "22"  && `cat CR.step` != "13" ]]; then echo "******Skipping Self Organizing Module"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "12" && `cat CR.step` != "16"  && `cat CR.step` != "18" ]]; then echo "******Skipping Self Organizing Module"; else
 	cd $address/Buckets
 	rm -rf hits
 	cd $address
@@ -1085,50 +1003,146 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "21" && `cat CR.step` != "
 				cat tmp1.* > log.tmps
 				rm -rf tmp1.*
 			fi
+
 			cd $address/OUTPUT/$Out
 			mv *.ft blast_hits
 			cd $address/OUTPUT/$Out/blast_hits
 			ls *.ft > list
-			for file in `cat list`; do
-				mv $file ${file/.f*/.blast.tsv}
-			done
+			if [ -s list ]
+			then
+				for file in `cat list`; do
+					mv $file ${file/.f*/.blast.tsv}
+				done
+			fi
 			rm -rf list
-		
+
 			cd $address/OUTPUT/$Out/contigs	
+			AvgSizeCntg="0"
+			TotalSizeCntg="0"
+			StdDevCntg="0"
+			MaxCntg="0"
+			touch null000.sizes
+			cat *.sizes > $Out.allsizes
+			if [ -s $Out.allsizes ]
+			then
+				AvgSizeCntg=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $Out.allsizes`
+				TotalSizeCntg=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $Out.allsizes`
+				StdDevCntg=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $Out.allsizes`
+				MaxCntg=`awk 'BEGIN{x=0};$0>x{x=$0};END{print x}' $Out.allsizes`
+			fi
+			echo "$AvgSizeCntg|$TotalSizeCntg|$StdDevCntg|$MaxCntg" > $address/OUTPUT/$Out/CntgStats.nmb
+			rm -rf *sizes
 			ls *.fasta > contigs_list
-			for file in `cat contigs_list`; do
-				mv $file ${file/.f*/.fasta}
-			done
+			if [ -s contig_list ]
+			then
+				for file in `cat contigs_list`; do
+					mv $file ${file/.f*/.fasta}
+				done
+			fi
 			rm -rf contigs_list
 
 			cd $address/OUTPUT/$Out/ORFs
+			AvgSizeORF="0"
+			TotalSizeORF="0"
+			StdDevORF="0"
+			MaxORF="0"
+			touch null000.sizes
+			cat *.sizes > $Out.allsizes
+			if [ -s $Out.allsizes ]
+			then
+				AvgSizeORF=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $Out.allsizes`
+				TotalSizeORF=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $Out.allsizes`
+				StdDevORF=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $Out.allsizes`
+				MaxORF=`awk 'BEGIN{x=0};$0>x{x=$0};END{print x}' $Out.allsizes`
+			fi
+			echo "$AvgSizeORF|$TotalSizeORF|$StdDevORF|$MaxORF" > $address/OUTPUT/$Out/ORFStats.nmb
+			rm -rf *sizes
 			ls *.fna > orfs_list
-			for file in `cat orfs_list`; do
-				mv $file ${file/.f*/.fna}
-			done
+			if [ -s orfs_list ]
+			then
+				for file in `cat orfs_list`; do
+					mv $file ${file/.f*/.fna}
+				done
+			fi
 			rm -rf orfs_list
 
 			cd $address/OUTPUT/$Out/read_hits
 			ls *.fasta > hits_list
-			for file in `cat hits_list`; do
-				mv $file ${file/.f*/.hits.fasta}
-			done
+			if [ -s hits_list ]
+			then
+				for file in `cat hits_list`; do
+					mv $file ${file/.f*/.hits.fasta}
+				done
+			fi
 			rm -rf hits_list
 
 			cd $address/OUTPUT/$Out
 			rm -rf log.header log.tmp1; rm -rf cont_log*; rm -rf ORF_log*
-			echo "-----------------------------------------------------------------------------
-Subref_database|Hits_seq.|Ppm|Contigs|ORFs|Blast_Time|SPADES_Time|Total_SubRef_Time|Status" > log.header
+			sed -i 's/|/\t/g' log.tmps
+			rm -rf cont_log*
+			cut -f 4 log.tmps > cont_log$(( n %= 100001))
+			if [ -s cont_log* ]
+			then
+				cat cont_log* > c_int
+				sed -i '/[a-z]/d' c_int
+				cntg=`awk '{s+=$1} END {print s}' c_int`
+				echo "$cntg" > $address/OUTPUT/$Out/cntg.nmb
+			else
+				if [[ -s $address/OUTPUT/$Out/cntg.nmb ]]
+				then 
+					cntg=`cat $address/OUTPUT/$Out/cntg.nmb`
+					if [[ -s $address/OUTPUT/$Out/CntgStats.nmb ]]
+					then
+						CntgStats=`cat $address/OUTPUT/$Out/CntgStats.nmb`
+					fi
+				fi
+			fi
+			rm -rf ORF_log*
+			cut -f 9 log.tmps > ORF_log$(( n %= 100001))
+			if [[ `cat CR.mode` == "Soft" ]]; 
+			then
+				ORFs="[Warning: ORFs are not calculated in Soft version]"
+				echo "$ORFs" > $address/OUTPUT/$Out/ORFs.nmb
+				ORFStats="NA|NA|NA|NA"
+				echo "$ORFStats" > $address/OUTPUT/$Out/ORFStats.nmb
+			else
+				if [ -s ORF_log* ]
+				then
+					cat ORF_log* > o_int
+					sed -i '/[a-z]/d' o_int
+					ORFs=`awk '{s+=$1} END {print s}' o_int`
+					echo "$ORFs" > $address/OUTPUT/$Out/ORFs.nmb
+					if [[ -s $address/OUTPUT/$Out/ORFStats.nmb ]]
+					then
+						ORFStats=`cat $address/OUTPUT/$Out/ORFStats.nmb`
+					fi
+				else
+					cd $address/OUTPUT/$Out
+					if [[ -s $address/OUTPUT/$Out/ORFs.nmb ]]
+					then 
+						ORFs=`cat $address/OUTPUT/$Out/ORFs.nmb`
+						if [[ -s $address/OUTPUT/$Out/ORFStats.nmb ]]
+						then
+							ORFStats=`cat $address/OUTPUT/$Out/ORFStats.nmb`
+						fi
+					fi
+				fi
+			fi
+			echo "|Contigs: $cntg
+|ORFs: $ORFs
+-----------------------------------------------------------------------------
+Subref_database|Hits_seq.|Ppm|Contigs|Total_Size_Contigs|Avg_Size_Contigs|Standard_Deviation_Contig_Sizes|Max_Contig_Size|ORFs|Total_Size_ORFs|Avg_ORF_Contigs|Standard_Deviation_ORF_Sizes|Max_ORF_Size|Blast_Time|SPADES_Time|Total_SubRef_Time|Status" > log.header
 			cat log.header log.tmps > log.tmp1
 			sed -i 's/|/\t/g' log.tmp1
-			cut -f 4 log.tmp1 > cont_log$(( n %= 100001))
-			cut -f 5 log.tmp1 > ORF_log$(( n %= 100001))
-			mv cont_log* $address; mv ORF_log* $address
 			rm -rf log.header
 		;;
-		16S|16s|16)
+		G|g)
 			cd $address/OUTPUT/$Out
-			
+			cntg=`cat $address/OUTPUT/$Out/cntg.nmb`
+			ORFs=`cat $address/OUTPUT/$Out/ORFs.nmb`
+			echo "	Contigs: $cntg
+	ORFs: $ORFs" > log.tmp1
+		;;
 	esac
 	rm -rf $address/spades/bin/assembly_*
 	cd $address/OUTPUT/$Out
@@ -1152,14 +1166,15 @@ Subref_database|Hits_seq.|Ppm|Contigs|ORFs|Blast_Time|SPADES_Time|Total_SubRef_T
 	then 
 		gzip scaffolds.fasta
 	fi
-	rm -rf scaffolds.fasta log.tmp log.tmps log.tmp1 fulltime.tmp ext.py list; rm -rf *.time2; rm -rf *.rev; rm -rf *.hits
-	cd $address; echo "23" > CR.step; CFLR="N"
+	mv log.tmp1 $address/OUTPUT/$Out/SubRefs.tsv
+	rm -rf scaffolds.fasta log.tmp log.tmps fulltime.tmp ext.py list; rm -rf *.time2; rm -rf *.rev; rm -rf *.hits
+	cd $address; echo "19" > CR.step; CFLR="N"
 fi
 }
 
 PrintResults ()
 {
-cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "23" ]]; then echo "******Skipping Print Results"; else
+cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "19" ]]; then echo "******Skipping Print Results"; else
 	cd $address/OUTPUT/$Out
 	rm -rvf tmp1.*
 	cd $address
@@ -1170,38 +1185,31 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "23" ]]; then echo "******
 	else
 		d3=$(echo "$d2 - $d1" |bc -l)
 	fi
-	if [ -s cont_log* ]
-	then
-		cat cont_log* > c_int
-		sed -i '/[a-z]/d' c_int
-		cntg=`awk '{s+=$1} END {print s}' c_int`
-		echo "$cntg" > $address/OUTPUT/$Out/cntg.nmb
-	else
-		cd $address/OUTPUT/$Out
-		if [[ -s $address/OUTPUT/$Out/cntg.nmb ]]
-		then 
-			cntg=`cat $address/OUTPUT/$Out/cntg.nmb`
+	cd $address/OUTPUT/$Out
+	if [[ -s $address/OUTPUT/$Out/cntg.nmb ]]
+	then 
+		cntg=`cat $address/OUTPUT/$Out/cntg.nmb`
+		if [[ -s $address/OUTPUT/$Out/CntgStats.nmb ]]
+		then
+			CntgStats=`cat $address/OUTPUT/$Out/CntgStats.nmb`
 		fi
-		cd $address
 	fi
+	cd $address
 	if [[ `cat CR.mode` == "Soft" ]]; 
 	then
 		ORFs="[Warning: ORFs are not calculated in Soft version]"
 		echo "$ORFs" > $address/OUTPUT/$Out/ORFs.nmb
+		ORFStats="NA|NA|NA|NA"
+		echo "$ORFStats" > $address/OUTPUT/$Out/ORFStats.nmb
 	else
-		if [ -s ORF_log* ]
-		then
-			cat ORF_log* > o_int
-			sed -i '/[a-z]/d' o_int
-			ORFs=`awk '{s+=$1} END {print s}' o_int`
-			echo "$ORFs" > $address/OUTPUT/$Out/ORFs.nmb
-		else
-			cd $address/OUTPUT/$Out
-			if [[ -s $address/OUTPUT/$Out/ORFs.nmb ]]
-			then 
-				ORFs=`cat $address/OUTPUT/$Out/ORFs.nmb`
+		cd $address/OUTPUT/$Out
+		if [[ -s $address/OUTPUT/$Out/ORFs.nmb ]]
+		then 
+			ORFs=`cat $address/OUTPUT/$Out/ORFs.nmb`
+			if [[ -s $address/OUTPUT/$Out/ORFStats.nmb ]]
+			then
+				ORFStats=`cat $address/OUTPUT/$Out/ORFStats.nmb`
 			fi
-			cd $address
 		fi
 	fi
 	cd $address/OUTPUT/$Out
@@ -1219,9 +1227,9 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "23" ]]; then echo "******
 		fi
 	fi
 	cd $address
-	echo "$Out|$R1|$T1|$T2|$Ref|$SubRef|$d3|$reads|$buckets|$ppm1|$cntg|$ORFs" > par.time
-	cat time.log par.time > time.log2; rm -rf time.log par.time; mv time.log2 time.log
-	sed -i 's/|/\t/g' time.log
+	echo "$Out|$R1|$T1|$T2|$Ref|$SubRef|$d3|$reads|$buckets|$ppm1|$cntg|$CntgStats|$ORFs|$ORFStats" > par.log
+	cat Log.tsv par.log > Log.tsv2; rm -rf Log.tsv par.log; mv Log.tsv2 Log.tsv
+	sed -i 's/|/\t/g' Log.tsv
 	rm -rf c_int o_int; rm -rf ORF_log*; rm -rf cont_log*
 	echo -e "\n [BEAF12.01.17 worked in $R1 with reference as $Ref (output as $Out) for $d3 seconds] \n"
 	sed -i -e 1,1d config.kp
@@ -1234,13 +1242,13 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "23" ]]; then echo "******
 			rm -rf $address/OUTPUT/$Out/reads.nmb
 		;;
 	esac
-	cd $address; echo "24" > CR.step; CFLR="N"
+	cd $address; echo "20" > CR.step; CFLR="N"
 fi
 }
 
 ErrorRevision ()
 {
-	cd $address; echo "25" > CR.step; CFLR="N"
+	cd $address; echo "21" > CR.step; CFLR="N"
 	echo "Starting Error Revision"
 	while read T1 T2 R1 R2 Ref SubRef Out; do
 		if [[ -d $address/OUTPUT ]]
@@ -1287,6 +1295,7 @@ ErrorRevision ()
 				then
 					rm -rf test.txt
 	                        else
+					rm -rf test.txt
 					cd $address/OUTPUT
 					mv $folder Errors
 	                        fi
@@ -1503,7 +1512,8 @@ BEAF ()
 							ORFs=`cat $address/OUTPUT/$Out/ORFs.nmb`
 						fi
 						cd $address/OUTPUT/$Out
-						echo "${File/.f*/}|$sq|$ppm2|$cntg|$ORFs|$BTime|$STime|$TTime|$Warnings" > tmp1.$File
+						PN_CalcStats
+						echo "${File/.f*/}|$sq|$ppm2|$cntg|$TotalSizeCntg|$AvgSizeCntg|$StdDevCntg|$MaxCntg|$ORFs|$TotalSizeORF|$AvgSizeORF|$StdDevORF|$MaxORF|$BTime|$STime|$TTime|$Warnings" > tmp1.$File
 						sed -i -e 1,1d list
 					done
 					cd $address/OUTPUT/$Out; rm -rf list; rm -rf ppm2.nmb cntg.nmb sq.nmb ORFs.nmb
@@ -1518,24 +1528,6 @@ BEAF ()
 					echo "22" > CR.step
 				fi
 				cd $address
-			;;
-			16S|16s|16)
-				if [ -s hits ]
-				then
-					G_Prepare_SPADES
-					G_SPADES1
-					G_SPADES2
-					Chimeras
-					cd $address/spades/bin
-					rm -rf assembly_$Out
-					cd $address/OUTPUT/$Out
-					gzip hits.fasta
-					RDNA_Filter
-				else
-					echo "# The proposed analysis could not continue due to its lacking of homology between provided sequences and reference genome."
-					rm -rf hits
-					echo "12" > CR.step
-				fi
 			;;
 		esac
 		CleaningTheMess
@@ -1713,7 +1705,7 @@ SoftBEAF ()
 						then
 							cntg=`cat $address/OUTPUT/$Out/cntg.nmb`
 						fi
-						echo "${File/.f*/}|$sq|$ppm2|$cntg|NotTested|$BTime|$STime|$TTime|$Warnings" > tmp1.$File
+						echo "${File/.f*/}|$sq|$ppm2|$cntg|$TotalSizeCntg|$AvgSizeCntg|$StdDevCntg|$MaxCntg|NA|NA|NA|NA|NA|$BTime|$STime|$TTime|$Warnings" > tmp1.$File
 						sed -i -e 1,1d list
 					done
 					cd $address/OUTPUT/$Out; rm -rf ORFs; rm -rf list; rm -rf ppm2.nmb cntg.nmb sq.nmb
