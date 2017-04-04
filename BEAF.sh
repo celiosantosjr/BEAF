@@ -117,7 +117,7 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "2" ]]; then echo "******I
 		mv Log.tsv2 Log.tsv3
 	fi
 	echo "_________________________________________________________________________________________________________
-	Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs|ORFs" > header
+Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs|AvgSizeCntg|TotalSizeCntg|StdDevCntg|MaxCntgSize|ORFs|AvgSizeORF|TotalSizeORF|StdDevORF|MaxORFSize" > header
 	cat Log.tsv header > Log.tsv2
 	rm -rf header Log.tsv
 	mv Log.tsv2 Log.tsv
@@ -134,7 +134,7 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "2" ]]; then echo "******I
 		mv Log.tsv2 Log.tsv3
 	fi
 	echo "_________________________________________________________________________________________________________
-	Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs" > header
+Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs|AvgSizeCntg|TotalSizeCntg|StdDevCntg|MaxCntgSize|ORFs|AvgSizeORF|TotalSizeORF|StdDevORF|MaxORFSize" > header
 	cat Log.tsv header > Log.tsv2
 	rm -rf header Log.tsv
 	mv Log.tsv2 Log.tsv
@@ -973,7 +973,7 @@ FastaFile.close()" > countsize.py
 			sed -i 's/>.*/>size/g' $File.count
 			python $address/OUTPUT/countsize.py $File.count > $File.ORF
 			rm -rf $File.count
-			grep "size" $SubRef.ORF | sed 's/size //g' > $File.ORF.sizes
+			grep "size" $File.ORF | sed 's/size //g' > $File.ORF.sizes
 			rm -rf $File.ORF
 			AvgSizeORF=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $File.ORF.sizes`
 			TotalSizeORF=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $File.ORF.sizes`
@@ -1231,6 +1231,9 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "19" ]]; then echo "******
 	cat Log.tsv par.log > Log.tsv2; rm -rf Log.tsv par.log; mv Log.tsv2 Log.tsv
 	sed -i 's/|/\t/g' Log.tsv
 	rm -rf c_int o_int; rm -rf ORF_log*; rm -rf cont_log*
+	cd $address/OUTPUT/$Out
+	rm -rf c_int o_int; rm -rf ORF_log*; rm -rf cont_log*
+	cd $address
 	echo -e "\n [BEAF12.01.17 worked in $R1 with reference as $Ref (output as $Out) for $d3 seconds] \n"
 	sed -i -e 1,1d config.kp
 	case $Keep in
@@ -1511,8 +1514,8 @@ BEAF ()
 						then
 							ORFs=`cat $address/OUTPUT/$Out/ORFs.nmb`
 						fi
-						cd $address/OUTPUT/$Out
 						PN_CalcStats
+						cd $address/OUTPUT/$Out
 						echo "${File/.f*/}|$sq|$ppm2|$cntg|$TotalSizeCntg|$AvgSizeCntg|$StdDevCntg|$MaxCntg|$ORFs|$TotalSizeORF|$AvgSizeORF|$StdDevORF|$MaxORF|$BTime|$STime|$TTime|$Warnings" > tmp1.$File
 						sed -i -e 1,1d list
 					done
@@ -1706,6 +1709,7 @@ SoftBEAF ()
 							cntg=`cat $address/OUTPUT/$Out/cntg.nmb`
 						fi
 						echo "${File/.f*/}|$sq|$ppm2|$cntg|$TotalSizeCntg|$AvgSizeCntg|$StdDevCntg|$MaxCntg|NA|NA|NA|NA|NA|$BTime|$STime|$TTime|$Warnings" > tmp1.$File
+						cd $address/OUTPUT/$Out
 						sed -i -e 1,1d list
 					done
 					cd $address/OUTPUT/$Out; rm -rf ORFs; rm -rf list; rm -rf ppm2.nmb cntg.nmb sq.nmb
