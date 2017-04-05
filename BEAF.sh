@@ -569,6 +569,7 @@ cd $address; if [[ "$CFLR" == "Y" && `cat CR.step` != "11" ]]; then echo "******
 			ORFs=`grep ">" ORFs.$Out.fna | wc -l`
 			echo "$ORFs" > $address/OUTPUT/$Out/ORFs.nmb
 			gzip ORFs.$Out.fna
+			mv ORFs.$Out.fna.gz ORFs.fa.gz
 		else
 			rm -rf ORFs.$Out.fna
 			ORFs="0"
