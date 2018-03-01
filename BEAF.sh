@@ -1371,7 +1371,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "19" ]]; then echo "******Skip
 			reads=`cat $address/OUTPUT/${Out}/reads.nmb`
 		fi
 	fi
-	echo "${Out}|$R1|$T1|$T2|$Ref|$SubRef|$d3|$reads|$buckets|$ppm1|$cntg|$CntgStats|$ORFs|$ORFStats" > $address/Log.tsv
+	echo "${Out}|$R1|$T1|$T2|$Ref|$SubRef|$d3|$reads|$buckets|$ppm1|$cntg|$CntgStats|$ORFs|$ORFStats" >> $address/Log.tsv
 	sed -i 's/|/\t/g' $address/Log.tsv
 	rm -rf $address/c_int $address/o_int; rm -rf $address/ORF_log*; rm -rf $address/cont_log*
 	rm -rf $address/OUTPUT/${Out}/c_int $address/OUTPUT/${Out}/o_int; rm -rf $address/OUTPUT/${Out}/ORF_log*; rm -rf $address/OUTPUT/${Out}/cont_log*
