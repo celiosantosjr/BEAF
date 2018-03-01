@@ -881,7 +881,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skip
 		date -u +%s > $address/OUTPUT/${Out}/datestartorffinder.tmp
 		perl $address/Lib/bb.orffinder.pl --infile=$address/OUTPUT/${Out}/contigs/contigs.$File.fasta --outfile=$address/OUTPUT/${Out}/ORFs/ORFs.$File.fna --minlen=300 --fasta > $address/OUTPUT/${Out}/logorffinder.txt # Parameters for protein/gene ORF finding should be specified here. If user wants to find orfs bigger or smaller just change parameter "minlen" to the minimum length required
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartorffinder.tmp)" | bc -l > $address/OUTPUT/${Out}/orffindertime.nmb
-		rm -rf logorffinder ; rm -rf $address/OUTPUT/${Out}/datestartorffinder.tmp
+		rm -rf $address/OUTPUT/${Out}/logorffinder ; rm -rf $address/OUTPUT/${Out}/datestartorffinder.tmp
 		if [[ -s $address/OUTPUT/${Out}/ORFs/ORFs.$File.fna ]]
 		then
 			ORFs=`grep ">" $address/OUTPUT/${Out}/ORFs/ORFs.$File.fna | wc -l`
@@ -1296,7 +1296,12 @@ Time for second SPADES run: $(cat $address/OUTPUT/${Out}/spades2time.nmb)s" >> $
 	else
 		d3=$(echo "$(date -u +%s) - $d1" |bc -l)
 	fi
-	echo "Total time for Reference $Ref with Subreference $SubRef: $d3 seconds
+	if [[ -s $address/Buckets/bucketpreviouslygeneratedmessage.tmp ]]
+	then
+		echo "Total time for Reference $Ref with Subreference $SubRef: $d3 seconds
+	Total time adding time to trim, analyse sequence quality and generate buckets (which were all done in a previous run): : $(echo $d3 + $(cat $address/Buckets/trimmingtime.nmb) + $(cat $address/Buckets/fastqctime.nmb) + $(cat $address/Buckets/bucketenginetime.nmb) | bc -l) seconds" >> $address/OUTPUT/${Out}/fulltime.tmp
+	else
+		echo "Total time for Reference $Ref with Subreference $SubRef: $d3 seconds
 	Total time excluding time to trim, analyse sequence quality and generate buckets: $(echo $d3 - $(cat $address/Buckets/trimmingtime.nmb) - $(cat $address/Buckets/fastqctime.nmb) - $(cat $address/Buckets/bucketenginetime.nmb) | bc -l) seconds" >> $address/OUTPUT/${Out}/fulltime.tmp
 	touch $address/OUTPUT/${Out}/log.tmp1
 	cat $address/OUTPUT/${Out}/log.tmp1 $address/OUTPUT/${Out}/fulltime.tmp >> $address/OUTPUT/${Out}/Log.txt
@@ -1402,7 +1407,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "19" ]]; then echo "******Skip
 			touch Buckets
 		;;
 		*)
-			rm -rf Buckets
+			rm -rf $address/Buckets
 			rm -rf $address/OUTPUT/${Out}/reads.nmb
 		;;
 	esac
@@ -1494,8 +1499,6 @@ BEAF () # The pipeline BEAF will run when using full version.
 {
 	echo "##### Running BEAF, full version #####"
 	d0=`date -u "+%s"`
-	address=$(dirname $(readlink -f $0))
-	
 	make_kp
 	Check
 	TimeHeader
@@ -1734,8 +1737,6 @@ SoftBEAF () # The pipeline BEAF will run when using soft version.
 {
 	echo "##### Running Soft BEAF, a faster but simpler version of the BEAF software #####"
 	d0=`date -u "+%s"`
-	address=$(dirname $(readlink -f $0))
-	
 	make_kp
 	Check
 	SoftTimeHeader
@@ -1931,7 +1932,7 @@ Main () # Interpreting user's input of whether he'll be using soft or full versi
 # This is what will actually be running once you start BEAF, asking whether to use Soft or Full version, then redirecting to Main function, which will interpret the answer
 # Once that is interpreted, it will start the proper pipeline, either BEAF or SoftBEAF, which will then run in a modular fashion, calling each function as it runs.
 
-address=$(dirname $(readlink -f $0))
+address=$(cd "$(dirname "")" && pwd)/$(basename "")
 CFLR="U"
 ver="BEAF (full)"
 
