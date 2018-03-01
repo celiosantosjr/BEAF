@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 
-ans="yes" #If you're sure you want to keep databases files from one loop to the next, change this to 'Y'. If you're sure you're not reusing .udb, change to 'N'
+address=$(cd "$(dirname "")" && pwd)/$(basename "")
 PathToSpades="$address/Lib/spades/bin/"
 PathToQuast="$address/Lib/quast/"
+
+threads="4"
+
+CFLR="U"
+ver="BEAF (full)"
+ans="yes" #If you're sure you want to keep databases files from one loop to the next, change this to 'Y'. If you're sure you're not reusing .udb, change to 'N'
 
 
 	# ======================================================================================================================================================================================== #
@@ -21,7 +27,7 @@ if [[ "$CFLR" == "Y" ]]; then echo "******Reusing previous settings and files"; 
 	cat $ConfigFile | awk NF > $address/config.file1
 	echo "# Checking if any buckets must be stored..."
 	echo "890_abc.123_XYZ" > $address/LastR1.kp
-	sort -k3,3 $address/config.file1 > $address/doconfig.kp
+	sort -S=50% -parallel=${threads} -k3,3 $address/config.file1 > $address/doconfig.kp
 	while read T1 T2 R1 R2 Ref SubRef Out; do
 		LastR1=`cat $address/LastR1.kp`	
 		if [[ "$R1" == "$LastR1" ]]
@@ -46,7 +52,7 @@ Check () # This function checks each line in config.file, checking for possible 
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "1" ]]; then echo "******Jumping autocheking system"; else
 	rm -rf $address/*.check
 	echo "# Checking your config file..."
-	sort -k7,7 $address/config.kp > $address/config.check
+	sort -S=50% -parallel=${threads} -k7,7 $address/config.kp > $address/config.check
 	touch $address/LastOut.check
 	while read T1 T2 R1 R2 Ref SubRef Out Keep; do
 		case $T1 in
@@ -144,17 +150,17 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "3" && `cat $address/CR.step` 
 			case $T1 in
 				16S|16s|16)
 					echo "# We're now trimming your files. Only R1 will be used, as interleaved files may result in wrong abundance values..."
-					cutadapt --minimum-length 80 --max-n 0.01 --quality-base 24 --trim-n -a AGATCGGAAGAGC -e 0.1 -O 5 -m 15 -o $address/Buckets/FastaQ-zcat.gz $R1 > $address/Buckets/d.tmp # Parameters of reads trimming should be specified here. Trimming universal Illumina adapter
+					cutadapt --cores=${threads} --quiet --minimum-length 80 --max-n 0.01 --quality-base 24 --trim-n -a AGATCGGAAGAGC -e 0.1 -O 5 -m 15 -o $address/Buckets/FastaQ-zcat.gz $R1 # > $address/Buckets/d.tmp # Parameters of reads trimming should be specified here. Trimming universal Illumina adapter
 				;;
 				*)
 					echo "# Trimming and merging your files..."
-					cutadapt --interleaved --minimum-length 80 --max-n 0.01 --quality-base 24 --trim-n -a AGATCGGAAGAGC -A AGATCGGAAGAGC -e 0.1 -O 5 -m 15 -o $address/Buckets/FastaQ-zcat.gz $R1 $R2 > $address/Buckets/d.tmp # Parameters of reads trimming should be specified here. Trimming universal Illumina adapter
+					cutadapt --cores=${threads} --quiet --interleaved --minimum-length 80 --max-n 0.01 --quality-base 24 --trim-n -a AGATCGGAAGAGC -A AGATCGGAAGAGC -e 0.1 -O 5 -m 15 -o $address/Buckets/FastaQ-zcat.gz $R1 $R2 # > $address/Buckets/d.tmp # Parameters of reads trimming should be specified here. Trimming universal Illumina adapter
 				;;
 			esac
 		;;
 		I|i)
 			echo "# Now we are trimming your files..."
-			cutadapt --minimum-length 80 --max-n 0.01 --quality-base 24 --trim-n -a AGATCGGAAGAGC -e 0.1 -O 5 -m 15 -o $address/Buckets/FastaQ-zcat.gz $R1 > $address/Buckets/d.tmp # Parameters of reads trimming should be specified here. Trimming universal Illumina adapter
+			cutadapt --quiet --minimum-length 80 --max-n 0.01 --quality-base 24 --trim-n -a AGATCGGAAGAGC -e 0.1 -O 5 -m 15 -o $address/Buckets/FastaQ-zcat.gz $R1 > $address/Buckets/d.tmp # Parameters of reads trimming should be specified here. Trimming universal Illumina adapter
 		;;
 		F|f)
 			gunzip -c < $R1 > $address/Buckets/FastaQ-zcat.fa
@@ -175,7 +181,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "4" ]]; then echo "******Skipp
 			echo "# Starting quality assessment of trimming..."
 			rm -rf $address/Buckets/FASTQCresults; rm -rf $address/Buckets/FastaQ-zcat.fa
 			mkdir $address/Buckets/FASTQCresults
-			fastqc -f fastq -o $address/Buckets/FASTQCresults $address/Buckets/FastaQ-zcat.gz # FASTQ assessment is done here
+			fastqc --quiet --threads $threads -f fastq -o $address/Buckets/FASTQCresults $address/Buckets/FastaQ-zcat.gz # FASTQ assessment is done here
 			rm -rf $address/Buckets/FASTQCresults/*_fastqc
 			echo "# We will convert merged file to fasta format."
 			gunzip -c $address/Buckets/FastaQ-zcat.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > $address/Buckets/FastaQ-zcat.fa
@@ -286,12 +292,12 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "5" && `cat $address/CR.step` 
 				echo "### Starting operation of cutting and readapting..."
 				echo "## Generating buckets..."
 				cat $address/Buckets/FastaQ-zcat.fa | parallel --pipe --block $bucketsize --recstart ">" "cat >$address/Buckets/{#}.bk"
-				ls $address/Buckets/*.bk | sort -V > $address/Buckets/bk_testlist.txt
+				ls $address/Buckets/*.bk | sort -S=50% -parallel=${threads} -V > $address/Buckets/bk_testlist.txt
 				try=0
 				while [[ "$(cat bk_testlist.txt | wc -l)" -gt "$buckets" && "$(echo $(wc -c $(tail -n 1 $address/Buckets/bk_testlist.txt) | sed 's/ .*//') + $(wc -c $(tail -n 2 $address/Buckets/bk_testlist.txt | head -n 1) | sed 's/ .*//') | bc)" -lt "$(wc -c $address/Buckets/1.bk | sed 's/ .*//')" ]] ; do
 					cat $(tail -n 1 $address/Buckets/bk_testlist.txt) >> $(tail -n 2 $address/Buckets/bk_testlist.txt | head -n 1)
 					rm -rf $(tail -n 1 $address/Buckets/bk_testlist.txt)
-					ls $address/Buckets/*.bk | sort -V > $address/Buckets/bk_testlist.txt
+					ls $address/Buckets/*.bk | sort -S=50% -parallel=${threads} -V > $address/Buckets/bk_testlist.txt
 				done
 				while [[ $(cat $address/Buckets/bk_testlist.txt | wc -l) -gt $buckets && ${try} -le 5 ]] ; do
 					if [[ -s "$address/Buckets/$(echo $buckets + 1 | bc).bk" ]]
@@ -317,11 +323,11 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "5" && `cat $address/CR.step` 
 					ls $address/Buckets/*.bk > $address/Buckets/bk_testlist.txt
 					((try++))
 				done
-				ls $address/Buckets/*.bk | sort -V > $address/Buckets/bk_testlist.txt
+				ls $address/Buckets/*.bk | sort -S=50% -parallel=${threads} -V > $address/Buckets/bk_testlist.txt
 				while [[ "$(cat bk_testlist.txt | wc -l)" -gt "$buckets" && "$(echo $(wc -c $(tail -n 1 $address/Buckets/bk_testlist.txt) | sed 's/ .*//') + $(wc -c $(tail -n 2 $address/Buckets/bk_testlist.txt | head -n 1) | sed 's/ .*//') | bc)" -lt "$(wc -c $address/Buckets/1.bk | sed 's/ .*//')" ]] ; do
 					cat $(tail -n 1 $address/Buckets/bk_testlist.txt) >> $(tail -n 2 $address/Buckets/bk_testlist.txt | head -n 1)
 					rm -rf $(tail -n 1 $address/Buckets/bk_testlist.txt)
-					ls $address/Buckets/*.bk | sort -V > $address/Buckets/bk_testlist.txt
+					ls $address/Buckets/*.bk | sort -S=50% -parallel=${threads} -V > $address/Buckets/bk_testlist.txt
 				done
 				rm -rf $address/Buckets/bk_list.txt $address/Buckets/bk_testlist.txt
 				mv $address/Buckets/bk_testlist.txt $address/Buckets/bk_list.txt
@@ -337,7 +343,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "5" && `cat $address/CR.step` 
 	then
 		echo "A total of ${buckets} were generated."
 	fi
-	cat $address/Buckets/buckets_list.txt | sed "s@$address/Buckets/@@" | sort -V > $address/Buckets/buckets_search.txt
+	cat $address/Buckets/buckets_list.txt | sed "s@$address/Buckets/@@" | sort -S=50% -parallel=${threads} -V > $address/Buckets/buckets_search.txt
 	rm -rf $address/Buckets/bk_list.txt $address/Buckets/bk_testlist.txt
 	buckets=`ls $address/Buckets/*.bk | wc -l`
 	echo "6" > $address/CR.step; CFLR="N"
@@ -358,7 +364,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 			sed -i '/>/d' $address/Buckets/none1
 			cat $address/Buckets/none1 | tr -d '\n' | sed 's/.\{100\}/&\n>\n/g' | sed '1s/.*/>\n&/' | awk -vRS=">" '{$0=n$0;ORS=RT}++n' > $address/Buckets/md8
 			rm -rf $address/Buckets/none $address/Buckets/none1
-			usearch -makeudb_usearch $address/Buckets/md8 -output $address/Buckets/$Ref.udb > $address/Buckets/makeudblog.txt # udb from reference is created here for genomes
+			usearch -makeudb_usearch $address/Buckets/md8 -output $address/Buckets/$Ref.udb -threads ${threads} > $address/Buckets/makeudblog.txt # udb from reference is created here for genomes
 			rm -rf $address/Buckets/makeudblog.txt
 			rm -rf $address/Buckets/md8
 			rm -rf $address/Buckets/*.m7
@@ -370,7 +376,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 							touch $address/Buckets/$buck.m8
 						else
 							echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck%.bk}/$buckets"
-							usearch -usearch_global $address/Buckets/$buck -db $address/Buckets/$Ref.udb -strand both -id 0.95 -evalue 1e-20 -matched $address/Buckets/$buck.m7 > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
+							usearch -usearch_global $address/Buckets/$buck -db $address/Buckets/$Ref.udb -strand both -id 0.95 -evalue 1e-20 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
 							rm -rf $address/Buckets/usearch.tmp
 							mv $address/Buckets/$buck.m7 $address/Buckets/$buck.m8
 							sed -i -e 1,1d $address/Buckets/buckets_search.txt
@@ -380,7 +386,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				*)
 					for buck in `cat buckets_search.txt`; do
 						echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck%.bk}/$buckets"
-						usearch -usearch_global $address/Buckets/$buck -db $address/Buckets/$Ref.udb -strand both -id 0.95 -evalue 1e-20 -matched $address/Buckets/$buck.m7 > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
+						usearch -usearch_global $address/Buckets/$buck -db $address/Buckets/$Ref.udb -strand both -id 0.95 -evalue 1e-20 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
 						rm -rf $address/Buckets/usearch.tmp
 						mv $address/Buckets/$buck.m7 $address/Buckets/$buck.m8
 						rm -rf $address/Buckets/$buck
@@ -405,7 +411,8 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 						cat $address/Reference_seqs/$Ref | awk NF > $address/Buckets/none
 						sed -i '/>/d' $address/Buckets/none
 						cat $address/Buckets/none | tr -d '\n' | sed 's/.\{100\}/&\n>\n/g' | sed '1s/.*/>\n&/' | awk -vRS=">" '{$0=n$0;ORS=RT}++n' > $address/Buckets/md8
-						usearch -makeudb_usearch $address/Buckets/md8 -output $address/Buckets/$Ref.udb
+						usearch -makeudb_usearch $address/Buckets/md8 -output $address/Buckets/$Ref.udb -threads ${threads} > $address/Buckets/makeudblog.txt
+						rm -rf $address/Buckets/makeudblog.txt
 						rm -rf $address/Buckets/md8
 						ls $address/Buckets/*.udb > $address/Buckets/udblist
 					;;
@@ -427,7 +434,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				Y|y)
 					for buck in `cat buckets_search.txt`; do
 						echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck%.bk}/$buckets"
-						usearch -usearch_local $address/Buckets/$buck -db $dbinuse -strand both -id 0.25 -evalue 1e-5 -matched $address/Buckets/$buck.m7 > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm for protein/gene binning should be specified here
+						usearch -usearch_local $address/Buckets/$buck -db $dbinuse -strand both -id 0.25 -evalue 1e-5 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm for protein/gene binning should be specified here
 						rm -rf $address/Buckets/usearch.tmp
 						mv $address/Buckets/$buck.m7 $address/Buckets/$buck.m8
 						sed -i -e 1,1d $address/Buckets/buckets_search.txt
@@ -436,7 +443,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				*)
 					for buck in `cat buckets_search.txt`; do
 						echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck%.bk}/$buckets"
-						usearch -usearch_local $address/Buckets/$buck -db $dbinuse -strand both -id 0.25 -evalue 1e-5 -matched $address/Buckets/$buck.m7 > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm for protein/gene binning should be specified here
+						usearch -usearch_local $address/Buckets/$buck -db $dbinuse -strand both -id 0.25 -evalue 1e-5 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm for protein/gene binning should be specified here
 						rm -rf $address/Buckets/usearch.tmp
 						mv $address/Buckets/$buck.m7 $address/Buckets/$buck.m8
 						rm -rf $address/Buckets/$buck
@@ -459,7 +466,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 							touch $address/Buckets/$buck.m8
 						else
 							echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck%.bk}/$buckets"
-							usearch -usearch_global $address/Buckets/$buck -db $address/Reference_seqs/$Ref -strand both -id 0.95 -evalue 1e-20 --maxhits 1 --maxaccepts 1 --maxrejects 100 -matched $address/Buckets/$buck.m7 > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
+							usearch -usearch_global $address/Buckets/$buck -db $address/Reference_seqs/$Ref -strand both -id 0.95 -evalue 1e-20 --maxhits 1 --maxaccepts 1 --maxrejects 100 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
 							rm -rf $address/Buckets/usearch.tmp
 							mv $address/Buckets/$buck.m7 $address/Buckets/$buck.m8
 							sed -i -e 1,1d $address/Buckets/buckets_search.txt
@@ -469,7 +476,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				*)
 					for buck in `cat $address/Buckets/buckets_search.txt`; do
 						echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck%.bk}/$buckets"
-						usearch -usearch_global $address/Buckets/$buck -db $address/Reference_seqs/$Ref -strand both -id 0.95 -evalue 1e-20 --maxhits 1 --maxaccepts 1 --maxrejects 100 -matched $address/Buckets/$buck.m7 > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
+						usearch -usearch_global $address/Buckets/$buck -db $address/Reference_seqs/$Ref -strand both -id 0.95 -evalue 1e-20 --maxhits 1 --maxaccepts 1 --maxrejects 100 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
 						rm -rf $address/Buckets/usearch.tmp
 						mv $address/Buckets/$buck.m7 $address/Buckets/$buck.m8
 						rm -rf $address/Buckets/$buck
@@ -546,7 +553,6 @@ G_Prepare_SPADES () # For genomes, prepares files in SPADES folder in order to s
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "8" ]]; then echo "******Skipping Assembly Preparation Module"; else
 	echo "# Making contigs for ${Out}..."
 	cp $address/Buckets/hits $address/Buckets/hits.fasta
-	cp -r $address/Buckets/hits.fasta $address/Lib/spades/bin
 	mv $address/Buckets/hits.fasta $address/OUTPUT/${Out}
 	echo "9" > $address/CR.step; CFLR="N"
 fi
@@ -556,7 +562,7 @@ G_SPADES1 () # For genomes, starts SPADES process using high kmers (full version
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" ]]; then echo "******Skipping Assembly Module with High Kmers"; else
 	date -u +%s > $address/OUTPUT/${Out}/datestartspades.tmp
-	python $address/Lib/spades/bin/spades.py -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using high Kmers
+	python $address/Lib/spades/bin/spades.py --threads ${threads} -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using high Kmers
 	echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartspades.tmp)" | bc -l > $address/OUTPUT/${Out}/spadestime.nmb
 	rm -rf $address/OUTPUT/${Out}/logspades.txt $address/OUTPUT/${Out}/datestartspades.tmp
 	echo "10" > $address/CR.step; CFLR="N"
@@ -566,14 +572,14 @@ fi
 G_SPADES2 () # For genomes, in case the first SPADES process with high kmers didn't work, it retries the assembly process using lower kmers. Soft version skips the first step so it will try only the low kmer assembly.
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" && `cat $address/CR.step` != "10" ]]; then echo "******Skipping Assembly Mode with Lower Kmers"; else
-	if [[ -s $address/OUTPUT/${Out}/assembly_${Out}/scaffolds.fasta ]]
+	if [[ -s $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta ]]
 	then
 		echo "SPADES ran properly with high kmers"
 	else
 		echo "# SPADES couldn't find contigs for ${Out} with high kmers. Trying again with lower kmers."
 		rm -rf $address/OUTPUT/${Out}/assembly_${Out}
 		date -u +%s > $address/OUTPUT/${Out}/datestartspades2.tmp
-		python $address/Lib/spades/bin/spades.py -k 11,15,21,25,31,35,41,45,51 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using lower Kmers
+		python $address/Lib/spades/bin/spades.py --threads ${threads} -k 11,15,21,25,31,35,41,45,51 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using lower Kmers
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartspades2.tmp)" | bc -l > $address/OUTPUT/${Out}/spades2time.nmb
 		rm -rf $address/OUTPUT/${Out}/logspades.txt $address/OUTPUT/${Out}/datestartspades2.tmp
 	fi
@@ -588,13 +594,13 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 	then
 		echo "******Skipping QUAST service"
 	else	
-		if [[ -s $address/OUTPUT/${Out}/assembly_${Out}/scaffolds.fasta ]]
+		if [[ -s $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta ]]
 		then
 			date -u +%s > $address/OUTPUT/${Out}/datestartquast.tmp
 			echo "# Analyzing draft putative genome...\n"
-			cp -r $address/OUTPUT/${Out}/assembly_${Out}/scaffolds.fasta $address/OUTPUT/${Out}/scaffolds.fasta
+			cp -r $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta $address/OUTPUT/${Out}/spades_contigs.fasta
 			tar -zcvf $address/OUTPUT/${Out}/SPADES_results.tar.gz $address/OUTPUT/${Out}/assembly_${Out} --remove-files
-			python $address/Lib/quast/metaquast.py --silent -R $address/Reference_seqs/$Ref -o $address/OUTPUT/${Out}/assessment $address/OUTPUT/${Out}/scaffolds.fasta > $address/OUTPUT/${Out}/quastlog.txt # Assessment of assemble is done in this step
+			python $address/Lib/quast/metaquast.py --threads ${threads} --silent -R $address/Reference_seqs/$Ref -o $address/OUTPUT/${Out}/assessment $address/OUTPUT/${Out}/spades_contigs.fasta # Assessment of assemble is done in this step
 			echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartquast.tmp)" | bc -l > $address/OUTPUT/${Out}/quasttime.nmb
 			rm -rf $address/OUTPUT/${Out}/quastlog.txt $address/OUTPUT/${Out}/datestartquast.tmp
 			echo "\n### Compressing results..."
@@ -604,15 +610,15 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 			echo "# The proposed analysis of ${Out} could not continue due to problems in SPADES assembly."
 		fi
 	fi
-	if [[ -s $address/OUTPUT/${Out}/scaffolds.fasta ]]
+	if [[ -s $address/OUTPUT/${Out}/spades_contigs.fasta ]]
 	then
 		echo "# Initiating ORF finding process for file going to ${Out}"
 		rm -rf $address/OUTPUT/${Out}/ORFs.${Out}.fna
 		date -u +%s > $address/OUTPUT/${Out}/datestartorffinder.tmp
-		perl $address/Lib/bb.orffinder.pl --infile=$address/OUTPUT/${Out}/scaffolds.fasta --outfile=$address/OUTPUT/${Out}/ORFs.${Out}.fna --minlen=200 --fasta > $address/OUTPUT/${Out}/perlog.txt # Parameters for genome ORF finding should be specified here. If user wants to find orfs bigger or smaller just change parameter "minlen" to the minimum length required
+		perl $address/Lib/bb.orffinder.pl --infile=$address/OUTPUT/${Out}/spades_contigs.fasta --outfile=$address/OUTPUT/${Out}/ORFs.${Out}.fna --minlen=200 --fasta > $address/OUTPUT/${Out}/perlog.txt # Parameters for genome ORF finding should be specified here. If user wants to find orfs bigger or smaller just change parameter "minlen" to the minimum length required
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartorffinder.tmp)" | bc -l > $address/OUTPUT/${Out}/orffindertime.nmb
 		rm -rf $address/OUTPUT/${Out}/perlog.txt $address/OUTPUT/${Out}/datestartorffinder.tmp
-		cntg=`grep ">" $address/OUTPUT/${Out}/scaffolds.fasta | wc -l`
+		cntg=`grep ">" $address/OUTPUT/${Out}/spades_contigs.fasta | wc -l`
 		if [[ -s $address/OUTPUT/${Out}/ORFs.${Out}.fna ]]
 		then
 			ORFs=`grep ">" $address/OUTPUT/${Out}/ORFs.${Out}.fna | wc -l`
@@ -625,7 +631,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 			echo "$ORFs" > $address/OUTPUT/${Out}/ORFs.nmb
 		fi
 		echo "A total of $ORFs ORFs were found for reference $Ref, from $cntg contigs"
-		gzip $address/OUTPUT/${Out}/scaffolds.fasta
+		gzip $address/OUTPUT/${Out}/spades_contigs.fasta
 	else
 		echo "# The proposed analysis of ${Out} could not continue due to problems in SPADES assembly."
 		cntg="0"
@@ -639,11 +645,11 @@ SoftGA () # Soft - For genomes, counts the number of contigs found after assembl
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skipping calculation of contigs and output compression"; else
 	gzip $address/OUTPUT/${Out}/hits.fasta
-	if [[ -s $address/OUTPUT/${Out}/assembly_${Out}/scaffolds.fasta ]]
+	if [[ -s $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta ]]
 	then
-		cntg=`grep ">" $address/OUTPUT/${Out}/scaffolds.fasta | wc -l`
-		gzip $address/OUTPUT/${Out}/assembly_${Out}/scaffolds.fasta
-		mv $address/OUTPUT/${Out}/assembly_${Out}/scaffolds.fasta.gz $address/OUTPUT/${Out}
+		cntg=`grep ">" $address/OUTPUT/${Out}/spades_contigs.fasta | wc -l`
+		gzip $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta
+		mv $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta.gz $address/OUTPUT/${Out}
 	else
 		cntg="0"
 	fi
@@ -689,10 +695,10 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "8" ]]; then echo "******Skipp
 	fi
 	case $T1 in
 		P|p)
-			ls $address/Reference_seqs/$SubRef/*.psq | sed 's/.psq//' | sort -k1,1 > $address/Reference_seqs/$SubRef/BlastDBlist
+			ls $address/Reference_seqs/$SubRef/*.psq | sed 's/.psq//' | sort -S=50% -parallel=${threads} -k1,1 > $address/Reference_seqs/$SubRef/BlastDBlist
 		;;
 		N|n)
-			ls $address/Reference_seqs/$SubRef/*.nsq | sed 's/.nsq//' | sort -k1,1 > $address/Reference_seqs/$SubRef/BlastDBlist
+			ls $address/Reference_seqs/$SubRef/*.nsq | sed 's/.nsq//' | sort -S=50% -parallel=${threads} -k1,1 > $address/Reference_seqs/$SubRef/BlastDBlist
 		;;
 	esac
 	echo "9" > $address/CR.step; CFLR="N"
@@ -708,18 +714,18 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" ]]; then echo "******Skipp
 		case $T1 in
 			P|p)
 				dsp1=`date -u "+%s"`
-				blastx -db $sub -query $address/Buckets/hits -out $sub.tmp -evalue 1e-5 -strand both -max_target_seqs 1 -num_threads 4 -outfmt 6 # Parameters of reads search by blast for proteins should be specified here
+				blastx -db $sub -query $address/Buckets/hits -out $sub.tmp -evalue 1e-5 -strand both -max_target_seqs 1 -num_threads $threads -outfmt 6 # Parameters of reads search by blast for proteins should be specified here
 				dsp2=`date -u "+%s"`
 				echo $dsp2 - $dsp1 |bc -l > $address/Reference_seqs/$SubRef/$sub.ft.time2
 			;;
 			N|n)
 				dsp1=`date -u "+%s"`
-				blastn -db $sub -query $address/Buckets/hits -out $sub.tmp -evalue 1e-5 -strand both -max_target_seqs 1 -num_threads 4 -outfmt 6 # Parameters of reads search by blast for genes should be specified here
+				blastn -db $sub -query $address/Buckets/hits -out $sub.tmp -evalue 1e-5 -strand both -max_target_seqs 1 -num_threads $threads -outfmt 6 # Parameters of reads search by blast for genes should be specified here
 				dsp2=`date -u "+%s"`
 				echo $dsp2 - $dsp1 |bc -l > $address/Reference_seqs/$SubRef/$sub.ft.time2
 			;;
 		esac
-		cat $sub.tmp | sort -k3,3 -k4,4 -n -r | awk '$3 > 90 && $4 > 25' | uniq > $address/Reference_seqs/$SubRef/$sub.ft
+		cat $sub.tmp | sort -S=50% -parallel=${threads} -k3,3 -k4,4 -n -r | awk '$3 > 90 && $4 > 25' | uniq > $address/Reference_seqs/$SubRef/$sub.ft
 		touch $sub.ft
 		rm -rf $sub.tmp
 		sed -i -e 1,1d $address/Reference_seqs/$SubRef/BlastDBlist
@@ -818,7 +824,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "13" ]]; then  echo "Skipping 
 	$address/OUTPUT/${Out}/assembly_*
 	date -u +%s > $address/OUTPUT/${Out}/datestartspades.tmp
 	rm -rf $address/OUTPUT/${Out}/assembly_${Out}_$File
-	python $address/Lib/spades/bin/spades.py -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/read_hits/$File.fasta -o $address/OUTPUT/${Out}/assembly_${Out}_$File > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for proteins and genes should be specified here, using high Kmers
+	python $address/Lib/spades/bin/spades.py --threads ${threads} -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/read_hits/$File.fasta -o $address/OUTPUT/${Out}/assembly_${Out}_$File > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for proteins and genes should be specified here, using high Kmers
 	echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartspades.tmp)" | bc -l > $address/OUTPUT/${Out}/spadestime.nmb
 	rm -rf $address/OUTPUT/${Out}/logspades.txt ; rm -rf $address/OUTPUT/${Out}/datestartspades.tmp
 	echo "14" > $address/CR.step; CFLR="N"
@@ -828,7 +834,7 @@ fi
 PN_SPADES2 () # For proteins and genes, in case the first SPADES process with high kmers didn't work, it retries the assembly process using lower kmers. Soft version skips the first step so it will try only the low kmer assembly.
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "13" && `cat CR.step` != "14" ]]; then echo "******Skipping Assembly with Low Kmers"; else
-	if [[ -s $address/OUTPUT/${Out}/assembly_${Out}_$File/scaffolds.fasta ]]
+	if [[ -s $address/OUTPUT/${Out}/assembly_${Out}_$File/spades_contigs.fasta ]]
 	then
 		echo "# No need to try with lower kmers "
 	else
@@ -843,7 +849,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "13" && `cat CR.step` != "14" 
 		fi
 		rm -rf $address/OUTPUT/${Out}/assembly_${Out}_$File
 		date -u +%s > $address/OUTPUT/${Out}/datestartspades2.tmp
-		python $address/Lib/spades/bin/spades.py -k 9,11,13,15,17,19,21,31 --only-assembler -s $address/OUTPUT/${Out}/read_hits/$File.fasta -o $address/OUTPUT/${Out}/assembly_${Out}_$File > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for proteins and genes should be specified here, using lower Kmers
+		python $address/Lib/spades/bin/spades.py --threads ${threads} -k 9,11,13,15,17,19,21,31 --only-assembler -s $address/OUTPUT/${Out}/read_hits/$File.fasta -o $address/OUTPUT/${Out}/assembly_${Out}_$File > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for proteins and genes should be specified here, using lower Kmers
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartspades2.tmp)" | bc -l > $address/OUTPUT/${Out}/spades2time.nmb
 		rm -rf $address/OUTPUT/${Out}/logspades.txt ; rm -rf $address/OUTPUT/${Out}/datestartspades2.tmp
 	fi
@@ -854,11 +860,11 @@ fi
 PNA () # For proteins and genes, arranges data from SPADES assembly into OUTPUT/${Out}, finding the number of contigs for each subreference.
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "15" ]]; then echo "******Skipping calculation of contigs"; else
-	if [ -s $address/OUTPUT/${Out}/assembly_${Out}_$File/scaffolds.fasta ]
+	if [ -s $address/OUTPUT/${Out}/assembly_${Out}_$File/spades_contigs.fasta ]
 	then
-		cntg=`grep ">" scaffolds.fasta | wc -l`
+		cntg=`grep ">" spades_contigs.fasta | wc -l`
 		echo "# SPADES worked on $File for ${Out}, finding $cntg contigs"
-		mv $address/OUTPUT/${Out}/assembly_${Out}_$File/scaffolds.fasta $address/OUTPUT/${Out}/contigs/contigs.$File.fasta
+		mv $address/OUTPUT/${Out}/assembly_${Out}_$File/spades_contigs.fasta $address/OUTPUT/${Out}/contigs/contigs.$File.fasta
 	else
 		echo "# The proposed analysis could not continue due to problems in SPADES assembly."
 		cntg="0"
@@ -960,19 +966,19 @@ fi
 rDNA_Chimeras ()
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skipping Dechimerization"; else
-	if [ -s $address/OUTPUT/${Out}/assembly_${Out}/scaffolds.fasta ]
+	if [ -s $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta ]
 	then
 		echo "# Analyzing 16S...\n"
-		cp -r $address/OUTPUT/${Out}/assembly_${Out}/scaffolds.fasta $address/OUTPUT/${Out}
+		cp -r $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta $address/OUTPUT/${Out}
 	fi
 	tar -zcvf $address/OUTPUT/${Out}/SPADES_results.tar.gz $address/OUTPUT/${Out}/assembly_${Out} --remove-files
 	rm -rf $address/OUTPUT/${Out}/headers.txt $address/OUTPUT/${Out}/uparse.txt $address/OUTPUT/${Out}/otus.fa $address/OUTPUT/${Out}/16Snr.fa $address/OUTPUT/${Out}/16S.fa $address/OUTPUT/${Out}/16S.relabeled.fa
 	date -u +%s > $address/OUTPUT/${Out}/datestartcluster.tmp
 	awk 'BEGIN{RS=">";ORS=""}length($0)>75{print ">"$0}' $address/OUTPUT/${Out}/hits.fasta > $address/OUTPUT/${Out}/16S.fa
-	# awk 'BEGIN{RS=">";ORS=""}length($0)>500{print ">"$0}' scaffolds.fasta > 16Ssize.fasta
-	usearch -fastx_relabel $address/OUTPUT/${Out}/16S.fa -prefix "${Out};" -fastaout $address/OUTPUT/${Out}/16S.relabeled.fa -keep_annots -sizeout
-	usearch -cluster_fast $address/OUTPUT/${Out}/16S.relabeled.fa -id 0.97 --maxaccepts 0 --maxrejects 0 -sizeout -centroids $address/OUTPUT/${Out}/16Snr.fa # -uc 16S.clusters.uc
-	usearch -cluster_otus $address/OUTPUT/${Out}/16Snr.fa -otus $address/OUTPUT/${Out}/otus.fa -uparseout $address/OUTPUT/${Out}/uparse.txt -relabel "${Out};" -minsize 2
+	# awk 'BEGIN{RS=">";ORS=""}length($0)>500{print ">"$0}' spades_contigs.fasta > 16Ssize.fasta
+	usearch -fastx_relabel $address/OUTPUT/${Out}/16S.fa -prefix "${Out};" -fastaout $address/OUTPUT/${Out}/16S.relabeled.fa -keep_annots -sizeout -threads ${threads}
+	usearch -cluster_fast $address/OUTPUT/${Out}/16S.relabeled.fa -id 0.97 --maxaccepts 0 --maxrejects 0 -sizeout -centroids $address/OUTPUT/${Out}/16Snr.fa -threads ${threads} # -uc 16S.clusters.uc
+	usearch -cluster_otus $address/OUTPUT/${Out}/16Snr.fa -otus $address/OUTPUT/${Out}/otus.fa -uparseout $address/OUTPUT/${Out}/uparse.txt -relabel "${Out};" -minsize 2 -threads ${threads}
 	grep -w "OTU" $address/OUTPUT/${Out}/uparse.txt | grep -vw "chimera" | awk '{ print $1 }' > $address/OUTPUT/${Out}/headers.txt
 	python $address/Lib/ext.py $address/OUTPUT/${Out}/headers.txt $address/OUTPUT/${Out}/16Snr.fa
 	mv headers.txt-16Snr.fa $address/OUTPUT/${Out}/16S.nonchimera
@@ -999,7 +1005,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "12" ]]; then echo "******Skip
 			echo "Using the full Green Genes database (clustered to 100% identity) to search for OTUs."
 			SubRef=nr100_green.cur.udb
 		fi
-		usearch -usearch_global $address/OUTPUT/${Out}/16S.nonchimera -db $address/Reference_seqs/$SubRef -sizein -sizeout -strand plus -id 0.97 -evalue 1e-20 --maxaccepts 5000 --maxrejects 5000 -maxhits 1 -matched $address/OUTPUT/${Out}/16S.m7 -notmatched $address/OUTPUT/${Out}/16S.nm7 -otutabout $address/OUTPUT/${Out}/otu_table.seqidnum -blast6out $address/OUTPUT/${Out}/otu_blast6out.tsv -query_cov 0.9 -threads 8 # -uc $address/OUTPUT/${Out}/map.uc # Alterar variavel threads
+		usearch -usearch_global $address/OUTPUT/${Out}/16S.nonchimera -db $address/Reference_seqs/$SubRef -sizein -sizeout -strand plus -id 0.97 -evalue 1e-20 --maxaccepts 5000 --maxrejects 5000 -maxhits 1 -matched $address/OUTPUT/${Out}/16S.m7 -notmatched $address/OUTPUT/${Out}/16S.nm7 -otutabout $address/OUTPUT/${Out}/otu_table.seqidnum -blast6out $address/OUTPUT/${Out}/otu_blast6out.tsv -query_cov 0.9 -threads ${threads} # -uc $address/OUTPUT/${Out}/map.uc # Alterar variavel threads
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestart16sfilter2.tmp)" | bc -l > $address/OUTPUT/${Out}/16sfilter2time.nmb
 		rm -rf 	$address/OUTPUT/${Out}/datestart16sfilter2.tmp
 		mv $address/OUTPUT/${Out}/otu_blast6out.tsv $address/OUTPUT/${Out}/otu_b6out.tsv
@@ -1061,9 +1067,9 @@ rDNA_Abundance ()
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "14" ]]; then echo "******Skipping Taxon Abundance Finding"; else
 	head -1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.header
 	sed -i '1,1d' $address/OUTPUT/${Out}/otu_table.seqidnum
-	sort -k1,1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.ord
-	join -1 1 -2 1 -o 1.2,2.2 $address/Reference_seqs/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/otu_table.ord | sed 's/ /\t/g' | sort -V > $address/OUTPUT/${Out}/otu_table.otus
-	awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/otu_table.otus | sort -V > $address/OUTPUT/${Out}/otu_table.sum
+	sort -S=50% -parallel=${threads} -k1,1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.ord
+	join -1 1 -2 1 -o 1.2,2.2 $address/Reference_seqs/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/otu_table.ord | sed 's/ /\t/g' | sort -S=50% -parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.otus
+	awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/otu_table.otus | sort -S=50% -parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.sum
 	cat $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/otu_table.sum > $address/OUTPUT/${Out}/otu_table.tsv
 	rm -rf $address/OUTPUT/${Out}/otu_table.ord $address/OUTPUT/${Out}/otu_table.otus $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/otu_table.sum
 	echo "16" > $address/CR.step; CFLR="N"
@@ -1298,9 +1304,9 @@ Time for second SPADES run: $(cat $address/OUTPUT/${Out}/spades2time.nmb)s" >> $
 	# mv hits hits.fasta
 	gzip $address/OUTPUT/${Out}/hits.fasta
 	rm -rf $address/OUTPUT/${Out}/hits $address/OUTPUT/${Out}/hits.fasta
-	if [[ -s $address/OUTPUT/${Out}/scaffolds.fasta ]]
+	if [[ -s $address/OUTPUT/${Out}/spades_contigs.fasta ]]
 	then 
-		gzip $address/OUTPUT/${Out}/scaffolds.fasta
+		gzip $address/OUTPUT/${Out}/spades_contigs.fasta
 	fi
 	case $T1 in 
 		G|g)
@@ -1310,11 +1316,11 @@ Time for second SPADES run: $(cat $address/OUTPUT/${Out}/spades2time.nmb)s" >> $
 			mv $address/OUTPUT/${Out}/log.tmp1 $address/OUTPUT/${Out}/SubRefs.tsv
 		;;
 		16S|16s|16)
-			mv $address/OUTPUT/${Out}/scaffolds.fasta.gz $address/OUTPUT/${Out}/assembled16S.fasta.gz
+			mv $address/OUTPUT/${Out}/spades_contigs.fasta.gz $address/OUTPUT/${Out}/assembled16S.fasta.gz
 			rm -rf $address/OUTPUT/${Out}/log.tmp1
 		;;
 	esac
-	rm -rf $address/OUTPUT/${Out}/scaffolds.fasta $address/OUTPUT/${Out}/log.tmp $address/OUTPUT/${Out}/log.tmps $address/OUTPUT/${Out}/fulltime.tmp $address/OUTPUT/${Out}/list; rm -rf $address/OUTPUT/${Out}/*.time2; rm -rf $address/OUTPUT/${Out}/*.rev; rm -rf $address/OUTPUT/${Out}/*.hits ; rm -rf $address/OUTPUT/${Out}/*time.nmb ; rm -rf $address/OUTPUT/${Out}/*time.tmp
+	rm -rf $address/OUTPUT/${Out}/spades_contigs.fasta $address/OUTPUT/${Out}/log.tmp $address/OUTPUT/${Out}/log.tmps $address/OUTPUT/${Out}/fulltime.tmp $address/OUTPUT/${Out}/list; rm -rf $address/OUTPUT/${Out}/*.time2; rm -rf $address/OUTPUT/${Out}/*.rev; rm -rf $address/OUTPUT/${Out}/*.hits ; rm -rf $address/OUTPUT/${Out}/*time.nmb ; rm -rf $address/OUTPUT/${Out}/*time.tmp
 	echo "19" > $address/CR.step; CFLR="N"
 fi
 }
@@ -1439,9 +1445,9 @@ ErrorRevision () # Finds outputs for which SPADES couldn't find contigs and move
 		mkdir $address/OUTPUT/Errors
 	fi
 	for folder in `cat $address/OUTPUT/list`; do
-	        if [[ -s $address/OUTPUT/$folder/scaffolds.fasta.gz ]]
+	        if [[ -s $address/OUTPUT/$folder/spades_contigs.fasta.gz ]]
 		then
-			touch $address/OUTPUT/$folder/scaffolds.fasta.gz
+			touch $address/OUTPUT/$folder/spades_contigs.fasta.gz
 	        else
 	                if [[ -d $address/OUTPUT/$folder/contigs ]]
 	                then
@@ -1922,10 +1928,6 @@ Main () # Interpreting user's input of whether he'll be using soft or full versi
 # This is what will actually be running once you start BEAF, asking whether to use Soft or Full version, then redirecting to Main function, which will interpret the answer
 # Once that is interpreted, it will start the proper pipeline, either BEAF or SoftBEAF, which will then run in a modular fashion, calling each function as it runs.
 
-address=$(cd "$(dirname "")" && pwd)/$(basename "")
-CFLR="U"
-ver="BEAF (full)"
-
 while [[ $# -gt 0 ]]
 do
 	case $1 in
@@ -1979,6 +1981,13 @@ do
 		;;
 		--force_restart|--Force_Restart|--Force_restart|--force_Restart|--FORCE_RESTART|--forcerestart|--Forcerestart|--ForceRestart|--FORCERESTART|--fr|--FR|--Fr|--fR|-fr|-FR|-Fr|-fR)
 			CFLR="N"
+		;;
+		-t|-T|--threads|--Threads|--THREADS|--t|--T)
+			threads=${2}
+			shift
+		;;
+		-t=*|-T=*|--threads=*|--Threads=*|--THREADS=*|--t=*|--T=*)
+			threads=${1#*=}
 		;;
 	esac
 	shift
