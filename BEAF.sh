@@ -3,17 +3,97 @@
 address=$(cd "$(dirname "")" && pwd)/$(basename "")
 echo "Starting program at folder ${address}"
 ConfigFile=config.file
-LIB="FLAG_TO_CHANGE"
-PathToSpades="/path/to/spades/bin/"
-PathToQuast="/path/to/quast/"
 
-ReferencesFolder="/path/to/Reference_seqs"
+PathToSpades="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/spades/bin/"
+PathToQuast="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/quast/"
+LIB="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/"
+
+ReferencesFolder="/media/coppini/SDATA2/Bioinfo/MAGs/Reference_seqs"
 
 threads="4"
 
 CFLR="U"
 ver="BEAF (full)"
 ans="yes" #If you're sure you want to keep databases files from one loop to the next, change this to 'Y'. If you're sure you're not reusing .udb, change to 'N'
+
+
+while [[ $# -gt 0 ]]
+do
+	case $1 in
+		-h|--help|-help|\?|-\?)
+			# show_help
+			exit
+		;;
+		-s|-S|-Soft|-soft|-SOFT|--Soft|--soft|--SOFT|--Soft-Version|--soft-version|--Soft-version)
+			ver="SOFT"
+		;;
+		--config|--Config|--CONFIG|-config|-Config|--CONFIG)
+			if [[ -s ${2} ]]
+			then
+				ConfigFile=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
+				echo "Using file $ConfigFile as config.file"
+			else
+				echo "Couldn't find the designated config.file '${2}'"
+				exit
+			fi
+			shift
+		;;
+		--config=*|--Config=*|--CONFIG=*|-config=*|-Config=*|--CONFIG=*)
+			if [[ -s ${1#*=} ]]
+			then
+				ConfigFile=$(cd "$(dirname "${1#*=}")" && pwd)/$(basename "${1#*=}")
+				echo "Using file $ConfigFile as config.file"
+			else
+				echo "Couldn't find the designated config.file '${1#*=}'"
+				exit
+			fi
+		;;
+		--output|--Output|--OUTPUT|-output|-Output|-OUTPUT|-O|-o|-Out|-OUT|-out|--out|--Out|--OUT|--o|--O)
+			if [[ -d "${2}" ]]
+			then
+				touch ${2}
+			else
+				mkdir ${2}
+			fi
+			address=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
+			echo "Using folder $address as output folder"
+			shift
+		;;
+		--output=*|--Output=*|--OUTPUT=*|-output=*|-Output=*|-OUTPUT=*|-O=*|-o=*|-Out=*|-OUT=*|-out=*|--out=*|--Out=*|--OUT=*|--o=*|--O=*)
+			if [[ -d "${1#*=}" ]]
+			then
+				touch ${1#*=}
+			else
+				mkdir ${1#*=}
+			fi
+			address=$(cd "$(dirname "${1#*=}")" && pwd)/$(basename "${1#*=}")
+			echo "Using folder $address as output folder"
+		;;
+		--force_continue|--Force_Continue|--Force_continue|--force_Continue|--FORCE_CONTINUE|--fc|--FC|--Fc|--fC|-fc|-FC|-Fc|-fC)
+			CFLR="Y"
+		;;
+		--force_restart|--Force_Restart|--Force_restart|--force_Restart|--FORCE_RESTART|--forcerestart|--Forcerestart|--ForceRestart|--FORCERESTART|--fr|--FR|--Fr|--fR|-fr|-FR|-Fr|-fR)
+			CFLR="N"
+		;;
+		-t|-T|--threads|--Threads|--THREADS|--t|--T)
+			threads=${2}
+			shift
+		;;
+		-t=*|-T=*|--threads=*|--Threads=*|--THREADS=*|--t=*|--T=*)
+			threads=${1#*=}
+		;;
+		--reference|--Reference|--REFERENCE|--references|--References|--REFERENCES|--ref|--Ref|--REF|--refs|--Refs|--REFS|-ref|-Ref|-REF|-reference|-references)
+			ReferencesFolder=${2}
+			shift
+		;;
+		--reference=*|--Reference=*|--REFERENCE=*|--references=*|--References=*|--REFERENCES=*|--ref=*|--Ref=*|--REF=*|--refs=*|--Refs=*|--REFS=*|-ref=*|-Ref=*|-REF=*|-reference=*|-references=*)
+			ReferencesFolder=${1#*=}
+		;;
+	esac
+	shift
+done
+
+
 
 
 	# ======================================================================================================================================================================================== #
@@ -567,7 +647,7 @@ G_SPADES1 () # For genomes, starts SPADES process using high kmers (full version
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" ]]; then echo "******Skipping Assembly Module with High Kmers"; else
 	date -u +%s > $address/OUTPUT/${Out}/datestartspades.tmp
-	python $address/Lib/spades/bin/spades.py --threads ${threads} -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using high Kmers
+	python $PathToSpades/spades.py --threads ${threads} -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using high Kmers
 	echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartspades.tmp)" | bc -l > $address/OUTPUT/${Out}/spadestime.nmb
 	rm -rf $address/OUTPUT/${Out}/logspades.txt $address/OUTPUT/${Out}/datestartspades.tmp
 	echo "10" > $address/CR.step; CFLR="N"
@@ -584,7 +664,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" && `cat $address/CR.step` 
 		echo "# SPADES couldn't find contigs for ${Out} with high kmers. Trying again with lower kmers."
 		rm -rf $address/OUTPUT/${Out}/assembly_${Out}
 		date -u +%s > $address/OUTPUT/${Out}/datestartspades2.tmp
-		python $address/Lib/spades/bin/spades.py --threads ${threads} -k 11,15,21,25,31,35,41,45,51 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using lower Kmers
+		python $PathToSpades/spades.py --threads ${threads} -k 11,15,21,25,31,35,41,45,51 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using lower Kmers
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartspades2.tmp)" | bc -l > $address/OUTPUT/${Out}/spades2time.nmb
 		rm -rf $address/OUTPUT/${Out}/logspades.txt $address/OUTPUT/${Out}/datestartspades2.tmp
 	fi
@@ -605,7 +685,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 			echo "# Analyzing draft putative genome...\n"
 			cp -r $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta $address/OUTPUT/${Out}/spades_contigs.fasta
 			tar -zcvf $address/OUTPUT/${Out}/SPADES_results.tar.gz $address/OUTPUT/${Out}/assembly_${Out} --remove-files
-			python $address/Lib/quast/metaquast.py --threads ${threads} --silent -R $ReferencesFolder/$Ref -o $address/OUTPUT/${Out}/assessment $address/OUTPUT/${Out}/spades_contigs.fasta # Assessment of assemble is done in this step
+			python $PathToQuast/metaquast.py --threads ${threads} --silent -R $ReferencesFolder/$Ref -o $address/OUTPUT/${Out}/assessment $address/OUTPUT/${Out}/spades_contigs.fasta # Assessment of assemble is done in this step
 			echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartquast.tmp)" | bc -l > $address/OUTPUT/${Out}/quasttime.nmb
 			rm -rf $address/OUTPUT/${Out}/quastlog.txt $address/OUTPUT/${Out}/datestartquast.tmp
 			echo "\n### Compressing results..."
@@ -620,7 +700,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 		echo "# Initiating ORF finding process for file going to ${Out}"
 		rm -rf $address/OUTPUT/${Out}/ORFs.${Out}.fna
 		date -u +%s > $address/OUTPUT/${Out}/datestartorffinder.tmp
-		perl $address/Lib/bb.orffinder.pl --infile=$address/OUTPUT/${Out}/spades_contigs.fasta --outfile=$address/OUTPUT/${Out}/ORFs.${Out}.fna --minlen=200 --fasta > $address/OUTPUT/${Out}/perlog.txt # Parameters for genome ORF finding should be specified here. If user wants to find orfs bigger or smaller just change parameter "minlen" to the minimum length required
+		perl $LIB/bb.orffinder.pl --infile=$address/OUTPUT/${Out}/spades_contigs.fasta --outfile=$address/OUTPUT/${Out}/ORFs.${Out}.fna --minlen=200 --fasta > $address/OUTPUT/${Out}/perlog.txt # Parameters for genome ORF finding should be specified here. If user wants to find orfs bigger or smaller just change parameter "minlen" to the minimum length required
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartorffinder.tmp)" | bc -l > $address/OUTPUT/${Out}/orffindertime.nmb
 		rm -rf $address/OUTPUT/${Out}/perlog.txt $address/OUTPUT/${Out}/datestartorffinder.tmp
 		cntg=`grep ">" $address/OUTPUT/${Out}/spades_contigs.fasta | wc -l`
@@ -800,7 +880,7 @@ PN_Prepare_SPADES () # For proteins and genes, prepares files for SPADES assembl
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "12" ]]; then echo "******Skipping Assembly Preparation"; else
 	rm -rf $address/OUTPUT/${Out}/*.rev; rm -rf $address/OUTPUT/${Out}/*.hits; rm -rf $address/OUTPUT/${Out}/*.rev-hits
 	cut -f 1 $address/OUTPUT/${Out}/$File > $address/OUTPUT/${Out}/$File.rev
-	python $address/Lib/ext.py $address/OUTPUT/${Out}/$File.rev $address/OUTPUT/${Out}/hits > $address/OUTPUT/${Out}/extpylog.txt
+	python $LIB/ext.py $address/OUTPUT/${Out}/$File.rev $address/OUTPUT/${Out}/hits > $address/OUTPUT/${Out}/extpylog.txt
 	rm -rf $address/OUTPUT/${Out}/extpylog.txt
 	touch $File.rev-hits
 	mv $File.rev-hits $address/OUTPUT/${Out}/$File.rev-hits
@@ -829,7 +909,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "13" ]]; then  echo "Skipping 
 	$address/OUTPUT/${Out}/assembly_*
 	date -u +%s > $address/OUTPUT/${Out}/datestartspades.tmp
 	rm -rf $address/OUTPUT/${Out}/assembly_${Out}_$File
-	python $address/Lib/spades/bin/spades.py --threads ${threads} -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/read_hits/$File.fasta -o $address/OUTPUT/${Out}/assembly_${Out}_$File > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for proteins and genes should be specified here, using high Kmers
+	python $PathToSpades/spades.py --threads ${threads} -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/read_hits/$File.fasta -o $address/OUTPUT/${Out}/assembly_${Out}_$File > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for proteins and genes should be specified here, using high Kmers
 	echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartspades.tmp)" | bc -l > $address/OUTPUT/${Out}/spadestime.nmb
 	rm -rf $address/OUTPUT/${Out}/logspades.txt ; rm -rf $address/OUTPUT/${Out}/datestartspades.tmp
 	echo "14" > $address/CR.step; CFLR="N"
@@ -854,7 +934,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "13" && `cat CR.step` != "14" 
 		fi
 		rm -rf $address/OUTPUT/${Out}/assembly_${Out}_$File
 		date -u +%s > $address/OUTPUT/${Out}/datestartspades2.tmp
-		python $address/Lib/spades/bin/spades.py --threads ${threads} -k 9,11,13,15,17,19,21,31 --only-assembler -s $address/OUTPUT/${Out}/read_hits/$File.fasta -o $address/OUTPUT/${Out}/assembly_${Out}_$File > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for proteins and genes should be specified here, using lower Kmers
+		python $PathToSpades/spades.py --threads ${threads} -k 9,11,13,15,17,19,21,31 --only-assembler -s $address/OUTPUT/${Out}/read_hits/$File.fasta -o $address/OUTPUT/${Out}/assembly_${Out}_$File > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for proteins and genes should be specified here, using lower Kmers
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartspades2.tmp)" | bc -l > $address/OUTPUT/${Out}/spades2time.nmb
 		rm -rf $address/OUTPUT/${Out}/logspades.txt ; rm -rf $address/OUTPUT/${Out}/datestartspades2.tmp
 	fi
@@ -890,7 +970,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skip
 		echo "# Initiating ORF finding process"
 		rm -rf $address/OUTPUT/${Out}/ORFs.$File.fna
 		date -u +%s > $address/OUTPUT/${Out}/datestartorffinder.tmp
-		perl $address/Lib/bb.orffinder.pl --infile=$address/OUTPUT/${Out}/contigs/contigs.$File.fasta --outfile=$address/OUTPUT/${Out}/ORFs/ORFs.$File.fna --minlen=300 --fasta > $address/OUTPUT/${Out}/logorffinder.txt # Parameters for protein/gene ORF finding should be specified here. If user wants to find orfs bigger or smaller just change parameter "minlen" to the minimum length required
+		perl $LIB/bb.orffinder.pl --infile=$address/OUTPUT/${Out}/contigs/contigs.$File.fasta --outfile=$address/OUTPUT/${Out}/ORFs/ORFs.$File.fna --minlen=300 --fasta > $address/OUTPUT/${Out}/logorffinder.txt # Parameters for protein/gene ORF finding should be specified here. If user wants to find orfs bigger or smaller just change parameter "minlen" to the minimum length required
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartorffinder.tmp)" | bc -l > $address/OUTPUT/${Out}/orffindertime.nmb
 		rm -rf $address/OUTPUT/${Out}/logorffinder ; rm -rf $address/OUTPUT/${Out}/datestartorffinder.tmp
 		if [[ -s $address/OUTPUT/${Out}/ORFs/ORFs.$File.fna ]]
@@ -985,7 +1065,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 	usearch -cluster_fast $address/OUTPUT/${Out}/16S.relabeled.fa -id 0.97 --maxaccepts 0 --maxrejects 0 -sizeout -centroids $address/OUTPUT/${Out}/16Snr.fa -threads ${threads} # -uc 16S.clusters.uc
 	usearch -cluster_otus $address/OUTPUT/${Out}/16Snr.fa -otus $address/OUTPUT/${Out}/otus.fa -uparseout $address/OUTPUT/${Out}/uparse.txt -relabel "${Out};" -minsize 2 -threads ${threads}
 	grep -w "OTU" $address/OUTPUT/${Out}/uparse.txt | grep -vw "chimera" | awk '{ print $1 }' > $address/OUTPUT/${Out}/headers.txt
-	python $address/Lib/ext.py $address/OUTPUT/${Out}/headers.txt $address/OUTPUT/${Out}/16Snr.fa
+	python $LIB/ext.py $address/OUTPUT/${Out}/headers.txt $address/OUTPUT/${Out}/16Snr.fa
 	mv headers.txt-16Snr.fa $address/OUTPUT/${Out}/16S.nonchimera
 	echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartcluster.tmp)" | bc -l > $address/OUTPUT/${Out}/clustertime.nmb
 	rm -rf $address/OUTPUT/${Out}/headers.txt $address/OUTPUT/${Out}/uparse.txt $address/OUTPUT/${Out}/otus.fa $address/OUTPUT/${Out}/16Snr.fa $address/OUTPUT/${Out}/16S.fa $address/OUTPUT/${Out}/16S.relabeled.fa $address/OUTPUT/${Out}/datestartcluster.tmp
@@ -1061,7 +1141,7 @@ fi
 PCoA_Maker ()
 {
 	if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "13" ]]; then echo "******Skipping PCoA_Maker analysis"; else
-	python $address/Lib/PcoA_maker.py $address/OUTPUT/${Out}/16S.fasta 
+	python $LIB/PcoA_maker.py $address/OUTPUT/${Out}/16S.fasta 
 	rm -rf $address/OUTPUT/${Out}/16S.fasta
 	echo "14" > $address/CR.step; CFLR="N"
 fi
@@ -1498,7 +1578,15 @@ ErrorRevision () # Finds outputs for which SPADES couldn't find contigs and move
 
 BEAF () # The pipeline BEAF will run when using full version.
 {
-	echo "##### Running BEAF, full version #####"
+	echo "
+##### Running BEAF, full version #####
+
+Config file = ${ConfigFile}
+Output folder = ${address}
+References folder = ${ReferencesFolder}
+
+Threads = ${threads}
+"
 	d0=`date -u "+%s"`
 	make_kp
 	Check
@@ -1932,82 +2020,6 @@ Main () # Interpreting user's input of whether he'll be using soft or full versi
 
 # This is what will actually be running once you start BEAF, asking whether to use Soft or Full version, then redirecting to Main function, which will interpret the answer
 # Once that is interpreted, it will start the proper pipeline, either BEAF or SoftBEAF, which will then run in a modular fashion, calling each function as it runs.
-
-while [[ $# -gt 0 ]]
-do
-	case $1 in
-		-h|--help|-help|\?|-\?)
-			# show_help
-			exit
-		;;
-		-s|-S|-Soft|-soft|-SOFT|--Soft|--soft|--SOFT|--Soft-Version|--soft-version|--Soft-version)
-			ver="SOFT"
-		;;
-		--config|--Config|--CONFIG|-config|-Config|--CONFIG)
-			if [[ -s ${2} ]]
-			then
-				ConfigFile=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
-				echo "Using file $ConfigFile as config.file"
-			else
-				echo "Couldn't find the designated config.file '${2}'"
-				exit
-			fi
-			shift
-		;;
-		--config=*|--Config=*|--CONFIG=*|-config=*|-Config=*|--CONFIG=*)
-			if [[ -s ${1#*=} ]]
-			then
-				ConfigFile=$(cd "$(dirname "${1#*=}")" && pwd)/$(basename "${1#*=}")
-				echo "Using file $ConfigFile as config.file"
-			else
-				echo "Couldn't find the designated config.file '${1#*=}'"
-				exit
-			fi
-		;;
-		--output|--Output|--OUTPUT|-output|-Output|-OUTPUT|-O|-o|-Out|-OUT|-out|--out|--Out|--OUT|--o|--O)
-			if [[ -d "${2}" ]]
-			then
-				touch ${2}
-			else
-				mkdir ${2}
-			fi
-			address=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
-			echo "Using folder $address as output folder"
-			shift
-		;;
-		--output=*|--Output=*|--OUTPUT=*|-output=*|-Output=*|-OUTPUT=*|-O=*|-o=*|-Out=*|-OUT=*|-out=*|--out=*|--Out=*|--OUT=*|--o=*|--O=*)
-			if [[ -d "${1#*=}" ]]
-			then
-				touch ${1#*=}
-			else
-				mkdir ${1#*=}
-			fi
-			address=$(cd "$(dirname "${1#*=}")" && pwd)/$(basename "${1#*=}")
-			echo "Using folder $address as output folder"
-		;;
-		--force_continue|--Force_Continue|--Force_continue|--force_Continue|--FORCE_CONTINUE|--fc|--FC|--Fc|--fC|-fc|-FC|-Fc|-fC)
-			CFLR="Y"
-		;;
-		--force_restart|--Force_Restart|--Force_restart|--force_Restart|--FORCE_RESTART|--forcerestart|--Forcerestart|--ForceRestart|--FORCERESTART|--fr|--FR|--Fr|--fR|-fr|-FR|-Fr|-fR)
-			CFLR="N"
-		;;
-		-t|-T|--threads|--Threads|--THREADS|--t|--T)
-			threads=${2}
-			shift
-		;;
-		-t=*|-T=*|--threads=*|--Threads=*|--THREADS=*|--t=*|--T=*)
-			threads=${1#*=}
-		;;
-		--reference|--Reference|--REFERENCE|--references|--References|--REFERENCES|--ref|--Ref|--REF|--refs|--Refs|--REFS|-ref|-Ref|-REF|-reference|-references)
-			ReferencesFolder=${2}
-			shift
-		;;
-		--reference=*|--Reference=*|--REFERENCE=*|--references=*|--References=*|--REFERENCES=*|--ref=*|--Ref=*|--REF=*|--refs=*|--Refs=*|--REFS=*|-ref=*|-Ref=*|-REF=*|-reference=*|-references=*)
-			ReferencesFolder=${1#*=}
-		;;
-	esac
-	shift
-done
 
 if [[ $CFLR == "Y" ]]
 then
