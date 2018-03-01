@@ -3,11 +3,11 @@
 address=$(cd "$(dirname "")" && pwd)/$(basename "")
 echo "Starting program at folder ${address}"
 ConfigFile=config.file
+LIB="FLAG_TO_CHANGE"
+PathToSpades="/path/to/spades/bin/"
+PathToQuast="/path/to/quast/"
 
-PathToSpades="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/spades/bin/"
-PathToQuast="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/quast/"
-
-ReferencesFolder="/media/coppini/SDATA2/Bioinfo/MAGs/Reference_seqs"
+ReferencesFolder="/path/to/Reference_seqs"
 
 threads="4"
 
