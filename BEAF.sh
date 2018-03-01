@@ -1303,6 +1303,7 @@ Time for second SPADES run: $(cat $address/OUTPUT/${Out}/spades2time.nmb)s" >> $
 	else
 		echo "Total time for Reference $Ref with Subreference $SubRef: $d3 seconds
 	Total time excluding time to trim, analyse sequence quality and generate buckets: $(echo $d3 - $(cat $address/Buckets/trimmingtime.nmb) - $(cat $address/Buckets/fastqctime.nmb) - $(cat $address/Buckets/bucketenginetime.nmb) | bc -l) seconds" >> $address/OUTPUT/${Out}/fulltime.tmp
+	fi
 	touch $address/OUTPUT/${Out}/log.tmp1
 	cat $address/OUTPUT/${Out}/log.tmp1 $address/OUTPUT/${Out}/fulltime.tmp >> $address/OUTPUT/${Out}/Log.txt
 	# mv hits hits.fasta
