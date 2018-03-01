@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 
 address=$(cd "$(dirname "")" && pwd)/$(basename "")
-PathToSpades="$address/Lib/spades/bin/"
-PathToQuast="$address/Lib/quast/"
+echo "Starting program at folder ${address}"
+ConfigFile=config.file
+
+PathToSpades="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/spades/bin/"
+PathToQuast="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/quast/"
+
+References_Folder="/media/coppini/SDATA2/Bioinfo/MAGs/Reference_seqs"
 
 threads="4"
 
@@ -27,7 +32,7 @@ if [[ "$CFLR" == "Y" ]]; then echo "******Reusing previous settings and files"; 
 	cat $ConfigFile | awk NF > $address/config.file1
 	echo "# Checking if any buckets must be stored..."
 	echo "890_abc.123_XYZ" > $address/LastR1.kp
-	sort -S=50% -parallel=${threads} -k3,3 $address/config.file1 > $address/doconfig.kp
+	sort -S 50% --parallel=${threads} -k3,3 $address/config.file1 > $address/doconfig.kp
 	while read T1 T2 R1 R2 Ref SubRef Out; do
 		LastR1=`cat $address/LastR1.kp`	
 		if [[ "$R1" == "$LastR1" ]]
@@ -52,7 +57,7 @@ Check () # This function checks each line in config.file, checking for possible 
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "1" ]]; then echo "******Jumping autocheking system"; else
 	rm -rf $address/*.check
 	echo "# Checking your config file..."
-	sort -S=50% -parallel=${threads} -k7,7 $address/config.kp > $address/config.check
+	sort -S 50% --parallel=${threads} -k7,7 $address/config.kp > $address/config.check
 	touch $address/LastOut.check
 	while read T1 T2 R1 R2 Ref SubRef Out Keep; do
 		case $T1 in
@@ -292,12 +297,12 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "5" && `cat $address/CR.step` 
 				echo "### Starting operation of cutting and readapting..."
 				echo "## Generating buckets..."
 				cat $address/Buckets/FastaQ-zcat.fa | parallel --pipe --block $bucketsize --recstart ">" "cat >$address/Buckets/{#}.bk"
-				ls $address/Buckets/*.bk | sort -S=50% -parallel=${threads} -V > $address/Buckets/bk_testlist.txt
+				ls $address/Buckets/*.bk | sort -S 50% --parallel=${threads} -V > $address/Buckets/bk_testlist.txt
 				try=0
 				while [[ "$(cat bk_testlist.txt | wc -l)" -gt "$buckets" && "$(echo $(wc -c $(tail -n 1 $address/Buckets/bk_testlist.txt) | sed 's/ .*//') + $(wc -c $(tail -n 2 $address/Buckets/bk_testlist.txt | head -n 1) | sed 's/ .*//') | bc)" -lt "$(wc -c $address/Buckets/1.bk | sed 's/ .*//')" ]] ; do
 					cat $(tail -n 1 $address/Buckets/bk_testlist.txt) >> $(tail -n 2 $address/Buckets/bk_testlist.txt | head -n 1)
 					rm -rf $(tail -n 1 $address/Buckets/bk_testlist.txt)
-					ls $address/Buckets/*.bk | sort -S=50% -parallel=${threads} -V > $address/Buckets/bk_testlist.txt
+					ls $address/Buckets/*.bk | sort -S 50% --parallel=${threads} -V > $address/Buckets/bk_testlist.txt
 				done
 				while [[ $(cat $address/Buckets/bk_testlist.txt | wc -l) -gt $buckets && ${try} -le 5 ]] ; do
 					if [[ -s "$address/Buckets/$(echo $buckets + 1 | bc).bk" ]]
@@ -323,11 +328,11 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "5" && `cat $address/CR.step` 
 					ls $address/Buckets/*.bk > $address/Buckets/bk_testlist.txt
 					((try++))
 				done
-				ls $address/Buckets/*.bk | sort -S=50% -parallel=${threads} -V > $address/Buckets/bk_testlist.txt
+				ls $address/Buckets/*.bk | sort -S 50% --parallel=${threads} -V > $address/Buckets/bk_testlist.txt
 				while [[ "$(cat bk_testlist.txt | wc -l)" -gt "$buckets" && "$(echo $(wc -c $(tail -n 1 $address/Buckets/bk_testlist.txt) | sed 's/ .*//') + $(wc -c $(tail -n 2 $address/Buckets/bk_testlist.txt | head -n 1) | sed 's/ .*//') | bc)" -lt "$(wc -c $address/Buckets/1.bk | sed 's/ .*//')" ]] ; do
 					cat $(tail -n 1 $address/Buckets/bk_testlist.txt) >> $(tail -n 2 $address/Buckets/bk_testlist.txt | head -n 1)
 					rm -rf $(tail -n 1 $address/Buckets/bk_testlist.txt)
-					ls $address/Buckets/*.bk | sort -S=50% -parallel=${threads} -V > $address/Buckets/bk_testlist.txt
+					ls $address/Buckets/*.bk | sort -S 50% --parallel=${threads} -V > $address/Buckets/bk_testlist.txt
 				done
 				rm -rf $address/Buckets/bk_list.txt $address/Buckets/bk_testlist.txt
 				mv $address/Buckets/bk_testlist.txt $address/Buckets/bk_list.txt
@@ -343,7 +348,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "5" && `cat $address/CR.step` 
 	then
 		echo "A total of ${buckets} were generated."
 	fi
-	cat $address/Buckets/buckets_list.txt | sed "s@$address/Buckets/@@" | sort -S=50% -parallel=${threads} -V > $address/Buckets/buckets_search.txt
+	cat $address/Buckets/buckets_list.txt | sed "s@$address/Buckets/@@" | sort -S 50% --parallel=${threads} -V > $address/Buckets/buckets_search.txt
 	rm -rf $address/Buckets/bk_list.txt $address/Buckets/bk_testlist.txt
 	buckets=`ls $address/Buckets/*.bk | wc -l`
 	echo "6" > $address/CR.step; CFLR="N"
@@ -359,7 +364,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 		G|g)
 			echo "# Starting searches..."
 			echo "### Making database from reference genome... "
-			cp -r $address/Reference_seqs/$Ref $address/Buckets/none
+			cp -r $References_Folder/$Ref $address/Buckets/none
 			cat $address/Buckets/none | awk NF > $address/Buckets/none1
 			sed -i '/>/d' $address/Buckets/none1
 			cat $address/Buckets/none1 | tr -d '\n' | sed 's/.\{100\}/&\n>\n/g' | sed '1s/.*/>\n&/' | awk -vRS=">" '{$0=n$0;ORS=RT}++n' > $address/Buckets/md8
@@ -408,7 +413,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				case $Ref in
 					*.fa|*.fasta|*.fas|*.faa|*.fna|*.fsa|*.FA|*.FASTA|*.FAS|*.FAA|*.FNA|*.FSA) # Tests if reference is in fasta format
 						echo "# Recognized $Ref file as fasta format. Making udb..."
-						cat $address/Reference_seqs/$Ref | awk NF > $address/Buckets/none
+						cat $References_Folder/$Ref | awk NF > $address/Buckets/none
 						sed -i '/>/d' $address/Buckets/none
 						cat $address/Buckets/none | tr -d '\n' | sed 's/.\{100\}/&\n>\n/g' | sed '1s/.*/>\n&/' | awk -vRS=">" '{$0=n$0;ORS=RT}++n' > $address/Buckets/md8
 						usearch -makeudb_usearch $address/Buckets/md8 -output $address/Buckets/$Ref.udb -threads ${threads} > $address/Buckets/makeudblog.txt
@@ -466,7 +471,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 							touch $address/Buckets/$buck.m8
 						else
 							echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck%.bk}/$buckets"
-							usearch -usearch_global $address/Buckets/$buck -db $address/Reference_seqs/$Ref -strand both -id 0.95 -evalue 1e-20 --maxhits 1 --maxaccepts 1 --maxrejects 100 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
+							usearch -usearch_global $address/Buckets/$buck -db $References_Folder/$Ref -strand both -id 0.95 -evalue 1e-20 --maxhits 1 --maxaccepts 1 --maxrejects 100 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
 							rm -rf $address/Buckets/usearch.tmp
 							mv $address/Buckets/$buck.m7 $address/Buckets/$buck.m8
 							sed -i -e 1,1d $address/Buckets/buckets_search.txt
@@ -476,7 +481,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				*)
 					for buck in `cat $address/Buckets/buckets_search.txt`; do
 						echo -en "\r"; echo -e "# Searching against reference $Ref and keeping buckets... ${buck%.bk}/$buckets"
-						usearch -usearch_global $address/Buckets/$buck -db $address/Reference_seqs/$Ref -strand both -id 0.95 -evalue 1e-20 --maxhits 1 --maxaccepts 1 --maxrejects 100 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
+						usearch -usearch_global $address/Buckets/$buck -db $References_Folder/$Ref -strand both -id 0.95 -evalue 1e-20 --maxhits 1 --maxaccepts 1 --maxrejects 100 -matched $address/Buckets/$buck.m7 -threads ${threads} > $address/Buckets/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
 						rm -rf $address/Buckets/usearch.tmp
 						mv $address/Buckets/$buck.m7 $address/Buckets/$buck.m8
 						rm -rf $address/Buckets/$buck
@@ -600,7 +605,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 			echo "# Analyzing draft putative genome...\n"
 			cp -r $address/OUTPUT/${Out}/assembly_${Out}/spades_contigs.fasta $address/OUTPUT/${Out}/spades_contigs.fasta
 			tar -zcvf $address/OUTPUT/${Out}/SPADES_results.tar.gz $address/OUTPUT/${Out}/assembly_${Out} --remove-files
-			python $address/Lib/quast/metaquast.py --threads ${threads} --silent -R $address/Reference_seqs/$Ref -o $address/OUTPUT/${Out}/assessment $address/OUTPUT/${Out}/spades_contigs.fasta # Assessment of assemble is done in this step
+			python $address/Lib/quast/metaquast.py --threads ${threads} --silent -R $References_Folder/$Ref -o $address/OUTPUT/${Out}/assessment $address/OUTPUT/${Out}/spades_contigs.fasta # Assessment of assemble is done in this step
 			echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartquast.tmp)" | bc -l > $address/OUTPUT/${Out}/quasttime.nmb
 			rm -rf $address/OUTPUT/${Out}/quastlog.txt $address/OUTPUT/${Out}/datestartquast.tmp
 			echo "\n### Compressing results..."
@@ -663,25 +668,25 @@ fi
 BlastDBGen () # For proteins and genes, generates blast dbs from subreference files.
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "8" ]]; then echo "******Skipping Preparation and generation of Blast Databases"; else
-	cp $address/Buckets/hits $address/Reference_seqs/$SubRef
-	rm -rf $address/Reference_seqs/$SubRef/SubRef_fasta.list; rm -rf $address/Reference_seqs/$SubRef/BlastDBlist
-	ls $address/Reference_seqs/$SubRef/*.fa >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.FA >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.fasta >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.FASTA >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.fas >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.FAS >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.faa >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.FAA >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.fna >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.FNA >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.fsa >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	ls $address/Reference_seqs/$SubRef/*.FSA >> $address/Reference_seqs/$SubRef/SubRef_fasta.list
-	if [[ -s $address/Reference_seqs/$SubRef/SubRef_fasta.list ]]
+	cp $address/Buckets/hits $References_Folder/$SubRef
+	rm -rf $References_Folder/$SubRef/SubRef_fasta.list; rm -rf $References_Folder/$SubRef/BlastDBlist
+	ls $References_Folder/$SubRef/*.fa >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.FA >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.fasta >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.FASTA >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.fas >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.FAS >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.faa >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.FAA >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.fna >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.FNA >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.fsa >> $References_Folder/$SubRef/SubRef_fasta.list
+	ls $References_Folder/$SubRef/*.FSA >> $References_Folder/$SubRef/SubRef_fasta.list
+	if [[ -s $References_Folder/$SubRef/SubRef_fasta.list ]]
 	then
 		date -u +%s > $address/OUTPUT/${Out}/datestartblastdbgen.tmp
 		echo "# Recognized $SubRef files in fasta format. Making blast databases..."
-		for sub in `cat $address/Reference_seqs/$SubRef/SubRef_fasta.list`; do
+		for sub in `cat $References_Folder/$SubRef/SubRef_fasta.list`; do
 			case $T1 in
 				P|p)
 					makeblastdb -in $sub -dbtype prot -out $sub.db
@@ -695,10 +700,10 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "8" ]]; then echo "******Skipp
 	fi
 	case $T1 in
 		P|p)
-			ls $address/Reference_seqs/$SubRef/*.psq | sed 's/.psq//' | sort -S=50% -parallel=${threads} -k1,1 > $address/Reference_seqs/$SubRef/BlastDBlist
+			ls $References_Folder/$SubRef/*.psq | sed 's/.psq//' | sort -S 50% --parallel=${threads} -k1,1 > $References_Folder/$SubRef/BlastDBlist
 		;;
 		N|n)
-			ls $address/Reference_seqs/$SubRef/*.nsq | sed 's/.nsq//' | sort -S=50% -parallel=${threads} -k1,1 > $address/Reference_seqs/$SubRef/BlastDBlist
+			ls $References_Folder/$SubRef/*.nsq | sed 's/.nsq//' | sort -S 50% --parallel=${threads} -k1,1 > $References_Folder/$SubRef/BlastDBlist
 		;;
 	esac
 	echo "9" > $address/CR.step; CFLR="N"
@@ -709,29 +714,29 @@ Filter2 () # For proteins and genes, makes the second homology search, using bla
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" ]]; then echo "******Skipping Second Filtering System"; else
 	date -u +%s > $address/OUTPUT/${Out}/datestartfilter2.tmp
-	for sub in `cat $address/Reference_seqs/$SubRef/BlastDBlist`; do
-		echo "# Searching against ${sub#"$address/Reference_seqs/$SubRef/"}..."
+	for sub in `cat $References_Folder/$SubRef/BlastDBlist`; do
+		echo "# Searching against ${sub#"$References_Folder/$SubRef/"}..."
 		case $T1 in
 			P|p)
 				dsp1=`date -u "+%s"`
 				blastx -db $sub -query $address/Buckets/hits -out $sub.tmp -evalue 1e-5 -strand both -max_target_seqs 1 -num_threads $threads -outfmt 6 # Parameters of reads search by blast for proteins should be specified here
 				dsp2=`date -u "+%s"`
-				echo $dsp2 - $dsp1 |bc -l > $address/Reference_seqs/$SubRef/$sub.ft.time2
+				echo $dsp2 - $dsp1 |bc -l > $References_Folder/$SubRef/$sub.ft.time2
 			;;
 			N|n)
 				dsp1=`date -u "+%s"`
 				blastn -db $sub -query $address/Buckets/hits -out $sub.tmp -evalue 1e-5 -strand both -max_target_seqs 1 -num_threads $threads -outfmt 6 # Parameters of reads search by blast for genes should be specified here
 				dsp2=`date -u "+%s"`
-				echo $dsp2 - $dsp1 |bc -l > $address/Reference_seqs/$SubRef/$sub.ft.time2
+				echo $dsp2 - $dsp1 |bc -l > $References_Folder/$SubRef/$sub.ft.time2
 			;;
 		esac
-		cat $sub.tmp | sort -S=50% -parallel=${threads} -k3,3 -k4,4 -n -r | awk '$3 > 90 && $4 > 25' | uniq > $address/Reference_seqs/$SubRef/$sub.ft
+		cat $sub.tmp | sort -S 50% --parallel=${threads} -k3,3 -k4,4 -n -r | awk '$3 > 90 && $4 > 25' | uniq > $References_Folder/$SubRef/$sub.ft
 		touch $sub.ft
 		rm -rf $sub.tmp
-		sed -i -e 1,1d $address/Reference_seqs/$SubRef/BlastDBlist
+		sed -i -e 1,1d $References_Folder/$SubRef/BlastDBlist
 	done
 	echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartfilter2.tmp)" | bc -l > $address/OUTPUT/${Out}/filter2time.nmb
-	rm -rf $address/Reference_seqs/$SubRef/BlastDBlist; rm -rf $address/Reference_seqs/$SubRef/*.tmp ; rm -rf $address/OUTPUT/${Out}/datestartfilter2.tmp
+	rm -rf $References_Folder/$SubRef/BlastDBlist; rm -rf $References_Folder/$SubRef/*.tmp ; rm -rf $address/OUTPUT/${Out}/datestartfilter2.tmp
 	echo "10" > $address/CR.step; CFLR="N"
 fi
 }
@@ -741,25 +746,25 @@ SaveDBs () # For proteins and genes, keeps subreference DBs in case ans (see lin
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "10" ]]; then echo "******Skipping the process of saving/removing databases"; else
 	case $ans in
 		Y|y|YES|Yes|yes)
-			if [[ -s $address/Reference_seqs/$SubRef/SubRef_fasta.list ]]
+			if [[ -s $References_Folder/$SubRef/SubRef_fasta.list ]]
 			then
-				if [[ -d $address/Reference_seqs/$SubRef/Fasta_files ]]
+				if [[ -d $References_Folder/$SubRef/Fasta_files ]]
 				then
-					touch $address/Reference_seqs/$SubRef/Fasta_files
+					touch $References_Folder/$SubRef/Fasta_files
 				else
-					mkdir $address/Reference_seqs/$SubRef/Fasta_files
+					mkdir $References_Folder/$SubRef/Fasta_files
 				fi
-				echo "# Databases of subreference $SubRef now saved to References_seqs folder in blastdb format. Fasta files used to make the databases have been realocated to Reference_seqs/$SubRef/Fasta_files."
-				for file in `cat $address/Reference_seqs/$SubRef/SubRef_fasta.list`; do
-					mv $file $address/Reference_seqs/$SubRef/Fasta_files
+				echo "# Databases of subreference $SubRef now saved to References_seqs folder in blastdb format. Fasta files used to make the databases have been realocated to $References_Folder/$SubRef/Fasta_files."
+				for file in `cat $References_Folder/$SubRef/SubRef_fasta.list`; do
+					mv $file $References_Folder/$SubRef/Fasta_files
 				done
 			fi
 		;;
 		*)
 			echo "# Removing blastdb databases generated using fasta files in the subreference folder (Reference_seqs/$SubRef)"
-			if [[ -s $address/Reference_seqs/$SubRef/SubRef_fasta.list ]]
+			if [[ -s $References_Folder/$SubRef/SubRef_fasta.list ]]
 			then
-				for file in `cat $address/Reference_seqs/$SubRef/SubRef_fasta.list`; do
+				for file in `cat $References_Folder/$SubRef/SubRef_fasta.list`; do
 					case $T1 in
 						P|p)
 							rm -rf $file.db.p*
@@ -772,7 +777,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "10" ]]; then echo "******Skip
 			fi
 		;;
 	esac
-	rm -rf $address/Reference_seqs/$SubRef/SubRef_fasta.list
+	rm -rf $References_Folder/$SubRef/SubRef_fasta.list
 	echo "11" > $address/CR.step; CFLR="N"
 fi
 }
@@ -781,8 +786,8 @@ Extraction () # For proteins and genes, moves files to OUTPUT/${Out} to continue
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skipping Extraction Module"; else
 	echo "# Arranging data..."
-	mv $address/Reference_seqs/$SubRef/*.ft $address/OUTPUT/${Out}
-	mv $address/Reference_seqs/$SubRef/*.time2 $address/OUTPUT/${Out}
+	mv $References_Folder/$SubRef/*.ft $address/OUTPUT/${Out}
+	mv $References_Folder/$SubRef/*.time2 $address/OUTPUT/${Out}
 	mv $address/Buckets/hits $address/OUTPUT/${Out}
 	mkdir $address/OUTPUT/${Out}/read_hits $address/OUTPUT/${Out}/contigs $address/OUTPUT/${Out}/blast_hits $address/OUTPUT/${Out}/ORFs
 	mkdir $address/OUTPUT/${Out}/contigs/SPADES
@@ -998,14 +1003,14 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "12" ]]; then echo "******Skip
 	else
 		rm -rf $address/OUTPUT/${Out}/16S.tsv $address/OUTPUT/${Out}/16S.nm7 $address/OUTPUT/${Out}/16S.nm8 $address/OUTPUT/${Out}/16S.m7 $address/OUTPUT/${Out}/16S.m8 $address/OUTPUT/${Out}/16S.nm8 $address/OUTPUT/${Out}/16S.seq $address/OUTPUT/${Out}/16S.fa $address/OUTPUT/${Out}/16Snr.fa $address/OUTPUT/${Out}/16Snr.fasta $address/OUTPUT/${Out}/otu_blast6out.tsv $address/OUTPUT/${Out}/otu_b6out.tsv $address/OUTPUT/${Out}/16S.table
 		date -u +%s > $address/OUTPUT/${Out}/datestart16sfilter2.tmp
-		if [[ -s $address/Reference_seqs/$SubRef ]]
+		if [[ -s $References_Folder/$SubRef ]]
 		then
 			echo "Using your SubReference $SubRef to search for OTUs."
 		else
 			echo "Using the full Green Genes database (clustered to 100% identity) to search for OTUs."
 			SubRef=nr100_green.cur.udb
 		fi
-		usearch -usearch_global $address/OUTPUT/${Out}/16S.nonchimera -db $address/Reference_seqs/$SubRef -sizein -sizeout -strand plus -id 0.97 -evalue 1e-20 --maxaccepts 5000 --maxrejects 5000 -maxhits 1 -matched $address/OUTPUT/${Out}/16S.m7 -notmatched $address/OUTPUT/${Out}/16S.nm7 -otutabout $address/OUTPUT/${Out}/otu_table.seqidnum -blast6out $address/OUTPUT/${Out}/otu_blast6out.tsv -query_cov 0.9 -threads ${threads} # -uc $address/OUTPUT/${Out}/map.uc # Alterar variavel threads
+		usearch -usearch_global $address/OUTPUT/${Out}/16S.nonchimera -db $References_Folder/$SubRef -sizein -sizeout -strand plus -id 0.97 -evalue 1e-20 --maxaccepts 5000 --maxrejects 5000 -maxhits 1 -matched $address/OUTPUT/${Out}/16S.m7 -notmatched $address/OUTPUT/${Out}/16S.nm7 -otutabout $address/OUTPUT/${Out}/otu_table.seqidnum -blast6out $address/OUTPUT/${Out}/otu_blast6out.tsv -query_cov 0.9 -threads ${threads} # -uc $address/OUTPUT/${Out}/map.uc # Alterar variavel threads
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestart16sfilter2.tmp)" | bc -l > $address/OUTPUT/${Out}/16sfilter2time.nmb
 		rm -rf 	$address/OUTPUT/${Out}/datestart16sfilter2.tmp
 		mv $address/OUTPUT/${Out}/otu_blast6out.tsv $address/OUTPUT/${Out}/otu_b6out.tsv
@@ -1026,7 +1031,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "12" ]]; then echo "******Skip
 		counter="1"
 		OTU=`cat $address/OUTPUT/${Out}/16S.table | wc -l`
 		while read B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12 B13; do
-			name=`grep ^">$B3 " $address/Reference_seqs/16S/Green.list  | sed 's/.*.k__/k__/g'`
+			name=`grep ^">$B3 " $References_Folder/16S/Green.list  | sed 's/.*.k__/k__/g'`
 			new=">16S_$counter|ID_$B4|AligLength_$B5|eval_$B12|Bitscore_$B13|Size_${B2%;}|$name"
 			echo -en "\r"; echo -en "Renaming OTUs ($counter/$OTU)   "
 			sed -i "s@^>16S_$B1;size=.*@$new@" $address/OUTPUT/${Out}/16S.m7
@@ -1067,9 +1072,9 @@ rDNA_Abundance ()
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "14" ]]; then echo "******Skipping Taxon Abundance Finding"; else
 	head -1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.header
 	sed -i '1,1d' $address/OUTPUT/${Out}/otu_table.seqidnum
-	sort -S=50% -parallel=${threads} -k1,1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.ord
-	join -1 1 -2 1 -o 1.2,2.2 $address/Reference_seqs/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/otu_table.ord | sed 's/ /\t/g' | sort -S=50% -parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.otus
-	awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/otu_table.otus | sort -S=50% -parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.sum
+	sort -S 50% --parallel=${threads} -k1,1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.ord
+	join -1 1 -2 1 -o 1.2,2.2 $References_Folder/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/otu_table.ord | sed 's/ /\t/g' | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.otus
+	awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/otu_table.otus | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.sum
 	cat $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/otu_table.sum > $address/OUTPUT/${Out}/otu_table.tsv
 	rm -rf $address/OUTPUT/${Out}/otu_table.ord $address/OUTPUT/${Out}/otu_table.otus $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/otu_table.sum
 	echo "16" > $address/CR.step; CFLR="N"
@@ -1082,13 +1087,13 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "15" ]]; then echo "******Skip
 	rm -rf $address/OUTPUT/${Out}/taxons
 	mkdir $address/OUTPUT/${Out}/taxons
 	while read otunum counts; do
-		echo "$counts	$(grep -m 1 "$otunum" $address/Reference_seqs/16S/ID_2_Taxon.txt)" >> $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
+		echo "$counts	$(grep -m 1 "$otunum" $References_Folder/16S/ID_2_Taxon.txt)" >> $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
 	done < $address/OUTPUT/${Out}/otu_table.tsv
 	sed -i -e 1,1d $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
 	echo "Counts	SeqIDnumber	OTU	Kingdom	Phylum	Class	Order	Family	Genus	Species" > $address/OUTPUT/${Out}/taxons/associatedtaxons.header
 	cat $address/OUTPUT/${Out}/taxons/associatedtaxons.header $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre > $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.tsv
 	while read seqidnum counts; do
-		echo "$counts	$(grep -m 1 ">${seqidnum} " $address/Reference_seqs/16S/Green.list)" >> $address/OUTPUT/${Out}/taxons/headers_counts.pre
+		echo "$counts	$(grep -m 1 ">${seqidnum} " $References_Folder/16S/Green.list)" >> $address/OUTPUT/${Out}/taxons/headers_counts.pre
 	done < $address/OUTPUT/${Out}/otu_table.seqidnum
 	echo "Counts	Full_Header" > $address/OUTPUT/${Out}/taxons/counts_fullheader.header
 	cat $address/OUTPUT/${Out}/taxons/counts_fullheader.header $address/OUTPUT/${Out}/taxons/headers_counts.pre > $address/OUTPUT/${Out}/taxons/headers_counts.tsv
@@ -1942,6 +1947,7 @@ do
 			if [[ -s ${2} ]]
 			then
 				ConfigFile=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
+				echo "Using file $ConfigFile as config.file"
 			else
 				echo "Couldn't find the designated config.file '${2}'"
 				exit
@@ -1952,6 +1958,7 @@ do
 			if [[ -s ${1#*=} ]]
 			then
 				ConfigFile=$(cd "$(dirname "${1#*=}")" && pwd)/$(basename "${1#*=}")
+				echo "Using file $ConfigFile as config.file"
 			else
 				echo "Couldn't find the designated config.file '${1#*=}'"
 				exit
@@ -1965,6 +1972,7 @@ do
 				mkdir ${2}
 			fi
 			address=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
+			echo "Using folder $address as output folder"
 			shift
 		;;
 		--output=*|--Output=*|--OUTPUT=*|-output=*|-Output=*|-OUTPUT=*|-O=*|-o=*|-Out=*|-OUT=*|-out=*|--out=*|--Out=*|--OUT=*|--o=*|--O=*)
@@ -1975,6 +1983,7 @@ do
 				mkdir ${1#*=}
 			fi
 			address=$(cd "$(dirname "${1#*=}")" && pwd)/$(basename "${1#*=}")
+			echo "Using folder $address as output folder"
 		;;
 		--force_continue|--Force_Continue|--Force_continue|--force_Continue|--FORCE_CONTINUE|--fc|--FC|--Fc|--fC|-fc|-FC|-Fc|-fC)
 			CFLR="Y"
