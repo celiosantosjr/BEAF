@@ -18,7 +18,7 @@ make_kp () # This function reorders the config.file in order to keep buckets in 
 {
 if [[ "$CFLR" == "Y" ]]; then echo "******Reusing previous settings and files"; else
 	rm -rf $address/*.kp; rm -rf $address/config.tmp; rm -rf $address/config.file1
-	cat $address/config.file | awk NF > $address/config.file1
+	cat $ConfigFile | awk NF > $address/config.file1
 	echo "# Checking if any buckets must be stored..."
 	echo "890_abc.123_XYZ" > $address/LastR1.kp
 	sort -k3,3 $address/config.file1 > $address/doconfig.kp
@@ -976,7 +976,6 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 	grep -w "OTU" $address/OUTPUT/${Out}/uparse.txt | grep -vw "chimera" | awk '{ print $1 }' > $address/OUTPUT/${Out}/headers.txt
 	python $address/Lib/ext.py $address/OUTPUT/${Out}/headers.txt $address/OUTPUT/${Out}/16Snr.fa
 	mv headers.txt-16Snr.fa $address/OUTPUT/${Out}/16S.nonchimera
-	# usearch -usearch_global 16Snr.fa -db otus.fa -strand both -sizein -sizeout -id 1.0 --maxaccepts 0 --maxrejects 0 -maxhits 1 -matched 16S.nonchimera
 	echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartcluster.tmp)" | bc -l > $address/OUTPUT/${Out}/clustertime.nmb
 	rm -rf $address/OUTPUT/${Out}/headers.txt $address/OUTPUT/${Out}/uparse.txt $address/OUTPUT/${Out}/otus.fa $address/OUTPUT/${Out}/16Snr.fa $address/OUTPUT/${Out}/16S.fa $address/OUTPUT/${Out}/16S.relabeled.fa $address/OUTPUT/${Out}/datestartcluster.tmp
 	echo "12" > $address/CR.step; CFLR="N"
@@ -993,8 +992,6 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "12" ]]; then echo "******Skip
 	else
 		rm -rf $address/OUTPUT/${Out}/16S.tsv $address/OUTPUT/${Out}/16S.nm7 $address/OUTPUT/${Out}/16S.nm8 $address/OUTPUT/${Out}/16S.m7 $address/OUTPUT/${Out}/16S.m8 $address/OUTPUT/${Out}/16S.nm8 $address/OUTPUT/${Out}/16S.seq $address/OUTPUT/${Out}/16S.fa $address/OUTPUT/${Out}/16Snr.fa $address/OUTPUT/${Out}/16Snr.fasta $address/OUTPUT/${Out}/otu_blast6out.tsv $address/OUTPUT/${Out}/otu_b6out.tsv $address/OUTPUT/${Out}/16S.table
 		date -u +%s > $address/OUTPUT/${Out}/datestart16sfilter2.tmp
-		# cat $address/OUTPUT/${Out}/16S.nonchimera | awk '/^>/{print ">" ++i; next} {print}' > $address/OUTPUT/${Out}/16S.seq
-		# usearch -usearch_local $address/OUTPUT/${Out}/16S.nonchimera -db $address/Reference_seqs/nr100_green.cur.udb -strand both -id 0.95 -evalue 1e-20 -maxhits 1 -matched $address/OUTPUT/${Out}/16S.m7 -notmatched $address/OUTPUT/${Out}/16S.nm7 -blast6out $address/OUTPUT/${Out}/16S.tsv > $address/OUTPUT/${Out}/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
 		if [[ -s $address/Reference_seqs/$SubRef ]]
 		then
 			echo "Using your SubReference $SubRef to search for OTUs."
@@ -1003,8 +1000,6 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "12" ]]; then echo "******Skip
 			SubRef=nr100_green.cur.udb
 		fi
 		usearch -usearch_global $address/OUTPUT/${Out}/16S.nonchimera -db $address/Reference_seqs/$SubRef -sizein -sizeout -strand plus -id 0.97 -evalue 1e-20 --maxaccepts 5000 --maxrejects 5000 -maxhits 1 -matched $address/OUTPUT/${Out}/16S.m7 -notmatched $address/OUTPUT/${Out}/16S.nm7 -otutabout $address/OUTPUT/${Out}/otu_table.seqidnum -blast6out $address/OUTPUT/${Out}/otu_blast6out.tsv -query_cov 0.9 -threads 8 # -uc $address/OUTPUT/${Out}/map.uc # Alterar variavel threads
-		# awk -F'\t' -vOFS='\t' '{ $9 = "'${Out}';" $9 }1' < $address/OUTPUT/${Out}/map.uc > $address/OUTPUT/${Out}/otu_mapped.uc
-		# rm -rf $address/OUTPUT/${Out}/map.uc
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestart16sfilter2.tmp)" | bc -l > $address/OUTPUT/${Out}/16sfilter2time.nmb
 		rm -rf 	$address/OUTPUT/${Out}/datestart16sfilter2.tmp
 		mv $address/OUTPUT/${Out}/otu_blast6out.tsv $address/OUTPUT/${Out}/otu_b6out.tsv
@@ -1064,12 +1059,6 @@ fi
 rDNA_Abundance ()
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "14" ]]; then echo "******Skipping Taxon Abundance Finding"; else
-	# gzip -kd hits.fasta.gz
-	# usearch -makeudb_usearch 16S.fasta -output 16S.fasta.udb > makeudblog.txt # udb from reference is created here for the taxons
-	# rm -rf makeudblog.txt
-	# usearch -usearch_global hits.fasta -db 16S.fasta.udb -strand both -id 0.95 -evalue 1e-20 -matched abundance.m7 > usearch.tmp
-	#cat 16S.fasta | sed 's/.*|k__/>k__/g' | sed 's/; /_/g'| sed 's/;//g' | sed 's/ //g' | sed 's/(/-/g' | sed 's/)//g' | sed 's/size=.*//g' | sed 's/_otu_/; otu_/g' | sed 's/>16S_Unknown_.*/>Unknown/g'> otus.fasta
-	#usearch -usearch_global hits.fasta -db otus.fasta -strand plus -id 0.97 -uc otu_mapped.uc -otutabout otu_table.seqidnum -blast6out otu_b6out.tsv > usearch.tmp
 	head -1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.header
 	sed -i '1,1d' $address/OUTPUT/${Out}/otu_table.seqidnum
 	sort -k1,1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.ord
@@ -1434,7 +1423,7 @@ ErrorRevision () # Finds outputs for which SPADES couldn't find contigs and move
 			mkdir $address/OUTPUT/${Out}
 			echo "This line was skipped in the config.file" > $address/OUTPUT/${Out}/Error.msg
 		fi
-	done < $address/config.file
+	done < $ConfigFile
 
 	rm -rf $address/OUTPUT/list
 	ls > $address/OUTPUT/list
@@ -1948,17 +1937,41 @@ do
 			ver="SOFT"
 		;;
 		--config|--Config|--CONFIG|-config|-Config|--CONFIG)
-			ConfigFile="$2"
+			if [[ -s ${2} ]]
+			then
+				ConfigFile=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
+			else
+				echo "Couldn't find the designated config.file '${2}'"
+				exit
+			fi
 			shift
 		;;
 		--config=*|--Config=*|--CONFIG=*|-config=*|-Config=*|--CONFIG=*)
-			ConfigFile="${1#*=}"
+			if [[ -s ${1#*=} ]]
+			then
+				ConfigFile=$(cd "$(dirname "${1#*=}")" && pwd)/$(basename "${1#*=}")
+			else
+				echo "Couldn't find the designated config.file '${1#*=}'"
+				exit
+			fi
 		;;
 		--output|--Output|--OUTPUT|-output|-Output|-OUTPUT|-O|-o|-Out|-OUT|-out|--out|--Out|--OUT|--o|--O)
+			if [[ -d "${2}" ]]
+			then
+				touch ${2}
+			else
+				mkdir ${2}
+			fi
 			address=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
 			shift
 		;;
 		--output=*|--Output=*|--OUTPUT=*|-output=*|-Output=*|-OUTPUT=*|-O=*|-o=*|-Out=*|-OUT=*|-out=*|--out=*|--Out=*|--OUT=*|--o=*|--O=*)
+			if [[ -d "${1#*=}" ]]
+			then
+				touch ${1#*=}
+			else
+				mkdir ${1#*=}
+			fi
 			address=$(cd "$(dirname "${1#*=}")" && pwd)/$(basename "${1#*=}")
 		;;
 		--force_continue|--Force_Continue|--Force_continue|--force_Continue|--FORCE_CONTINUE|--fc|--FC|--Fc|--fC|-fc|-FC|-Fc|-fC)
