@@ -2,15 +2,32 @@
 
 address=$(cd "$(dirname "")" && pwd)/$(basename "")
 echo "Starting program at folder ${address}"
-ConfigFile=config.file
+ConfigFile=$(cd "$(dirname "config.file")" && pwd)/$(basename "config.file")
 
-PathToSpades="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/spades/bin/"
-PathToQuast="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/quast/"
-LIB="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/"
+PathToSpades="/Path/to/spades/bin/"
+PathToQuast="/Path/to/quast/"
+LIB="/Path/to/BEAFLibrary/"
 
-ReferencesFolder="/media/coppini/SDATA2/Bioinfo/MAGs/Reference_seqs"
+ReferencesFolder="/Path/to/Reference_seqs"
 
-threads="4"
+
+threads=4
+if [[ $(nproc) -gt 2 ]]
+then
+	threads=`echo "$(nproc) * 9 / 10" | bc` # If more than 2 threads in the computer, use 90% of threads
+else
+	if [[ $(nproc) -eq 2 ]]
+	then
+		threads=1 # If only 2 threads in the computer, use only 1 thread
+	else
+		if [[ $(nproc) -eq 1 ]]
+		then
+			threads=1 # If a single thread in the computer, use only 1 thread
+		else 
+			echo "Couldn't determine the number of threads in the computer. Please, specify threads manually." # If the system can't determine the number of threads as higher than 2, 2 nor 1, then ask for the threads to be determined manually, and, until it is, use the default of 4.
+		fi
+	fi
+fi
 
 CFLR="U"
 ver="BEAF (full)"
