@@ -1,46 +1,56 @@
-echo "#### At this point you should have installed Usearch in /usr/bin folder or in
- /bin folder to ensure complete and successful instalation ####"
+
+### ADD PYFASTA
+
+
+echo "At this point you should have installed Usearch in your computer to ensure complete and successful instalation"
 which usearch > .test.file
 if [ -s .test.file ]
 then
-	sudo apt-get install hmmer ncbi-blast+ python-biopython git
-	sudo apt-get install -y pkg-config libfreetype6-dev libpng-dev python-matplotlib
-	sudo apt-get upgrade python-biopython
-	pip install -U pip
-	pip install --user --upgrade cutadapt
+	sudo apt-get install --upgrade python python3
+	sudo apt-get install --upgrade ncbi-blast+ python-biopython git python3-pip python-pip cmake
+
+	sudo pip install -U pip
+
+	sudo pip install -U biopython scikit-learn scipy numpy cutadapt
+
+	sudo pip3 install --upgrade cutadapt
+
 	git clone https://github.com/ablab/quast                        
-	git clone https://github.com/dsenalik/bb
-	cd bb
-	mv bb.orffinder ../bb.orffinder.pl
-	chmod +x bb.orffinder.pl
-	cd ../quast
-	rm -rf ../bb
-	chmod +x install_full.sh
-	sh ./install_full.sh
-	cd ..
-	wget http://cab.spbu.ru/files/release3.10.1/SPAdes-3.10.1-Linux.tar.gz
-	tar -xzf SPAdes-3.10.1-Linux.tar.gz
-	mv SPAdes-3.10.1-Linux spades
-	rm -rvf *.tar.gz
-	cd Reference_seqs
-	ls *tar.gz > list
-	for file in `cat list`
-	do
-		tar -zxvf $file
-	done
-	rm -rf list
-	gunzip *.gz
-	cd ..
-	chmod u+x BEAF.sh
-	chmod u+x optmizer.sh
-	echo "########### Finished ###########"
-	echo "PLEASE USE THE FOLLOWING COMMANDS:
-
-$ ./BEAF.sh
-
-Option -b. Look in OUTPUT folder and observe if all results are consistent
-After this, repeat the operation using -s. Repeat the verification."
+	git clone https://github.com/ablab/spades
+	sudo sh quast/install_full.sh install_full
+	cd spades
+	SpadesVersion="$(cat assembler/VERSION)"
+	chmod +x make-targz.sh
+	sh ./make-targz.sh
+	gunzip SPAdes-${SpadesVersion}.gz
+	cd SPAdes-${SpadesVersion}
+	sudo sh ./spades_compile.sh
+	cd ../..
 else
-	echo "##### You actually do not have installed usearch, 
-please install usearch in /usr/bin or /bin folders ######"
+	echo "You actually do not have installed usearch, please install usearch."
 fi
+rm -rf .test.file
+cd Reference_seqs
+ls *tar.gz > list
+for file in `cat list`; do
+	tar -zxvf $file
+done
+rm -rf list
+ls *gz > list
+for file in `cat list`; do
+	gunzip $file
+done
+cd ..
+chmod u+x BEAF.sh #nome do BEAF aqui
+echo "Testing complete installation..."
+echo "G	R	Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	Alistipes_putredinis_DSM_17216.fna	NA	Test_genome1
+N	I	Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	transposon.fasta	transposon	Test_nt1
+P	I	Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	bdg.fa	BDG	Test_prot1" > config.file
+sh ./BEAF.sh > Run.log
+rm -rf Test_sample
+cd Reference_seqs
+rm -rf *.fa *.fasta *.fna BDG DNA_pol
+cd ..
+echo "See in OUTPUT folder if all files read good."
+echo "To test again, please download Test_sample and Reference_seqs folders again from source."
+echo "########### Finished ###########"
