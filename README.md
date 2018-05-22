@@ -37,8 +37,8 @@ On the third column (R1), you must give the complete path to your file (R1 file 
 other two cases), from your main folder to the file itself (example: home/usr/Desktop/BEAF-master/R1_trimmed.fastq.gz).
 On the fourth column (R2), in the case of paired end files, you must give the complete path to the second file (R2), as 
 explained above. For interleaved files, use 'NA' instead.
-On the fifth column (Ref), use the name of the reference genome file (not compressed and in fasta format) or protein/gene databank file in the Reference_seqs folder (this first database should be less specific and be composed by a large number of sequences, helping program to identify besides highly homologous reads, less homologous ones too). If there will be a Reference for protein/gene databanks, you can use a UDB file instead of fasta.
-On the sixth column (SubRef), use the name of the folder containing subreferences for protein/gene families, which should be placed inside the Reference_seqs folder as well. For proteins and genes, subreferences are a requirement: if you do not wish to use one, simply copy the reference fasta file and use it as subreference (placing it inside a folder containing only that file, inside the Reference_seqs folder, and indicating that folder as your subreference). If using genome, simply use 'NA' instead.
+On the fifth column (Ref), use the name of the reference genome file (not compressed and in fasta format) or protein/gene databank file in the Reference folder (this first database should be less specific and be composed by a large number of sequences, helping program to identify besides highly homologous reads, less homologous ones too). If there will be a Reference for protein/gene databanks, you can use a UDB file instead of fasta.
+On the sixth column (SubRef), use the path to the folder containing subreferences for protein/gene families, if any. If using genome, use 'NA' instead.
 On the seventh column (Out), use the desired name for the output folder generated from that file (example: Metaspot1_Ecoli).
 Don't use spaces nor slashes in the name.
 Be careful to not leave any empty lines in final file.
@@ -54,7 +54,7 @@ DNA_pol.fasta	DNA_pol	1D
 
 - Changing parameters of run
 
-User can change every run parameter directly in shell script file, since blast/usearch identity or coverage parameters to keep or not keep formatted reference databases. All possible changes are indicated over script, but unless you have a good notion of shell language we strongly advice to not change any parameter. If some parameters are changed, indicate in your "Material and Methods" section the new parameters. If nothing was changed just cite these parameters as "default".
+User can change every run parameter directly in shell script file, since blast/usearch identity or coverage parameters to keep or not keep formatted reference databases. You can choose between blastn and megablast when finding against gene families, it could in some cases speed up the process. All possible changes are indicated over script, but unless you have a good notion of shell language we strongly advice to not change any parameter. If some parameters are changed, indicate in your "Material and Methods" section the new parameters. If nothing was changed just cite these parameters as "default".
 
 - Results 
 
@@ -88,22 +88,20 @@ Results are given inside OUTPUT folder. In each output, previously designed by u
 	Folder containing identified orf's by contigs file: ORFs
 
 .....Errors:
-/home/usr/PATHWAY_TO_HERE/BEAF-master/OUTPUT/Errors 
+/home/usr/PATHWAY_TO_HERE/BEAF-master/OUTPUT/Errors
 	Any Output that could not find a single contig will be moved to this folder (in an $Out folder inside the Errors folder)
 	Notice that these outputs are not necessarily errors, as they can simply be outputs that had few hits
 	Sometimes, though, the SPADES assembly runs into problems, and cannot properly bin contigs
 	For each folder in the Errors folder, it is recommended to try running BEAF again for that set of Sample/Reference in case that the Log.txt inside the output folder shows a high number of hits
 	Inside the Errors folder, you can also find a file named 'config.redo'. If you want to retry for all files which presented an error, just move this file to the BEAF-master folder and rename it to config.file. It is already formatted in the config.file format, and contains only the information to retry the outputs that BEAF couldn't find contigs for. Remember that, if the Log.txt actually shows a low number of hits, this will probably not be an error, but just an indication of low homology.
 
+```
 
-- Continue Function
+# Continue Function
 
 In case BEAF is stopped abruptly (as in a power surge or in any other case the computer or program would shut down unexpectedly), the program is able to continue the last run from the point it stopped. It will usually work well in that sense, as it is programmed in modules and will continue from the last module before it stopped. Be aware that by using the continue function, BEAF will not be able to calculate the time the run took properly (and the same applies if the computer is put in hibernation mode during it's running). 
 
 Alternatively, when using a long list of sets of sample/reference in contigs.file, you can simply delete CR.step, CR.mode and the Buckets folder (if present) from the BEAF-master folder, and use the continue function. This will make it so that the time of running is accurate, and also minimize the chance of errors (although it is already very small for this 'continue function').
-
-
-```
 
 # Speeding up the process
 
@@ -125,7 +123,7 @@ Alternatively, when using a long list of sets of sample/reference in contigs.fil
 
 # Contact and License
 
-All bugs should be reported to: celio.diasjunior@gmail.com or guilherme.coppini@hotmail.com. 
+All bugs should be reported to: celio.diasjunior@gmail.com or guilherme.coppini@gmail.com. 
 Please cite us: "Santos-Júnior, CD et al. BEAF: An automated pipeline to referenced genome and protein or gene families binning and assembly of next generation sequencing data. (Under publishing)".
 Rights between any third party software are not in claim, they continue under rights of original distribution.
 
