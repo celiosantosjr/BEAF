@@ -1,26 +1,25 @@
 #!/usr/bin/env bash
 
 address=$(cd "$(dirname "")" && pwd)/$(basename "")
-echo "Starting program at folder ${address}, at $(date "+%X %e/%m/%Y")"
 ConfigFile=$(cd "$(dirname "config.file")" && pwd)/$(basename "config.file")
 
-spades="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/spades/SPAdes-3.11.0/bin/spades.py"
-quast="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/quast/metaquast.py"
-usearch="/bin/usearch"
-fastqc="/usr/local/bin/fastqc"
-cdhit="/usr/lib/cd-hit/cd-hit"
-cutadapt="/usr/local/bin/cutadapt"
-pyfasta="/usr/local/bin/pyfasta"
-pigz="/usr/local/bin/pigz"
+spades="/Path/To/SPADES"
+quast="/Path/To/QUAST"
+usearch="/Path/To/USEARCH"
+fastqc="/Path/To/FastQC"
+cdhit="/Path/To/cd-hit"
+cutadapt="/Path/To/cutadapt"
+pyfasta="/Path/To/PyFasta"
+pigz="/Path/To/pigz"
+orffinder="/Path/To/bb.orffinder.pl"
 
-LIB="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/"
-orffinder="$LIB/bb.orffinder.pl"
+LIB="/Path/To/Lib/"
 extpy="$LIB/ext.py"
 SeqLength="$LIB/SeqLength.py"
-PCoAmaker="$LIB/PcoA_maker.py"
+PCAmaker="$LIB/PCA_maker.py"
 
 BucketsFolder="Buckets"
-ReferencesFolder="/media/coppini/SDATA2/Bioinfo/MAGs/Reference_seqs"
+ReferencesFolder="Reference_seqs" # /Path/To/Reference_seqs
 
 TrimFiles="True"
 adapter="AGATCGGAAGAGC"
@@ -49,7 +48,10 @@ maxaccepts1=1
 maxrejects1=32
 maxaccepts2=5000
 maxrejects2=5000
+genmaxrejects2=64
+
 rDNA16Scutoff=50
+rDNAminCntgLength=500
 
 strand="both"
 
@@ -79,11 +81,99 @@ KeepGenomeUDBs="no"
 AlwaysKeepBuckets="no"
 StopAfterMakingBuckets="no"
 
+show_help ()
+{
+	echo "
+	####	    BEAF - version 1.0.0 (Built on 22/05/2018)	     ####
+	####	Avaiable at https://github.com/celiosantosjr/BEAF    ####
+
+Usage: BEAF.sh [options]
+
+Here's a guide for avaiable options. Defaults for each option are showed between brackets: [default].
+
+N=Integer (eg. 100)
+n=Integer or float (eg. 90 or 0.90)
+e=float or exponential (eg. 0.001 or 1e-3)
+
+Tutorial options:
+	-h, --help	Show this helpful help page
+	--config_help	Show a help page in configuring your config.file
+
+Basic options:
+	--config [file]		Config file to be used [config.file]
+	--output [folder]	Folder where output is sent [current folder]
+	-t, --threads [N]	Number of threads [90% of avaiable threads]
+	--reference [folder]	Folder where your reference files are located [Reference_seqs]
+
+Advanced options for your run:
+	--force_continue	BEAF continues a previous run
+	--force_restart		BEAF deletes files from a previous run, starting anew.
+	--disable_ref_folder	Use full paths for references in the config.file, disable the references folder (same as doing --reference "")
+	--AlwaysKeepBuckets	Don't delete buckets after runs. Only use this if you are using the same sequencing file for all your runs.
+	--DontTrim		Skip trimming of reads.
+	--OnlyMakeBuckets	Stop after making buckets. Don't run the BEAF pipeline.
+	--KeepBlastDBs		Don't delete blast databases after using them - for proteins and genes.
+	--SedSplit		When making a genome database for genome searches, do not use PyFasta, simply cutting the genome at coverage 1x through UNIX commands
+
+Homology search options
+--Affecting all modules
+	--maxaccepts [N]	Stop USEARCH search (2nd filter) after finding N results that match filter criteria [5000]
+	--maxrejects [N]	Stop USEARCH search (apply to both filters) after finding N results that do not match filter criteria
+	--maxrejects1 [N]	Stop USEARCH search (1st filter) after finding N results that do not match filter criteria [32]
+	--maxrejects2 [N]	Stop USEARCH search (2nd filter) after finding N results that do not match filter criteria for protein/gene and taxonomy modes [5000]
+	--genmaxrejects2 [N]	Stop USEARCH search (2nd filter) after finding N results that do not match filter criteria for genome mode [64]
+--Genome
+	--gen_id [n]		Minimum identity for genome analyses [0.95]
+	--gen_id1 [n]		Minimum identity only for the 1st filter of genome analyses [0.85]
+	--gen_id2 [n]		Minimum identity only for the 2nd filter of genome analyses (subrefs) [0.95]
+
+	--gen_evalue1 [e]	Minimum e-value for the 1st filter of genome analyses
+	--gen_evalue2 [e]	Minimum e-value for the 2nd filter of genome analyses
+
+	--GenCoverage [n]	Genome coverage for the genome database used in the homology searches (if using subrefs, applies to both the 1st and 2nd filter)
+	--GenCoverage1 [n]	Genome coverage for the genome database used in the 1st homology search (if using subrefs)
+	--GenCoverage2 [n]	Genome coverage for the genome database used in the 2nd homology search (if using subrefs)
+	--GenFragLength [N]	Length of fragments generated for the genome database used in the homology searches
+	
+--Protein/Gene
+	--prot_id1 [n]		Minimum identity for the 1st filter of protein/gene analyses (general filter)
+	--prot_id1 [n]		Minimum identity for the 2nd filter of protein/gene analyses (subref filter)
+
+	--prot_evalue1 [e]	Minimum e-value for the 1st filter of protein/gene analyses
+	--prot_evalue2 [e]	Minimum e-value for the 2nd filter of protein/gene analyses
+
+	--prot_qcov1 [n]	Minimum query-coverage for the 1st filter of protein/gene analyses
+	--prot_qcov2 [n]	Minimum query-coverage for the 2nd filter of protein/gene analyses
+
+--Taxonomy
+	--16S_id1 [N]		Minimum identity for the 1st filter of taxonomic analyses (general filter)
+	--16S_id2 [N]		Minimum identity for the 2nd filter of taxonomic analyses (specific/OTU filter)
+
+	--16S_evalue1 [e]	Minimum e-value for the 1st filter of taxonomic analyses
+	--16S_evalue2 [e]	Minimum e-value for the 2nd filter of taxonomic analyses
+
+	--16S_qcov [n]		Minimum query-coverage filter only for taxonomic analyses
+
+	--16S_cutoff [N]	Minimum number of counts for an OTU to be accepted
+
+	
+"
+}
+
+show_config_help ()
+{
+	echo "STILL ON THE WORKS"
+}
+
 while [[ $# -gt 0 ]]
 do
 	case $1 in
 		-h|--help|-help|\?|-\?)
-			# show_help
+			show_help
+			exit
+		;;
+		--config_help|--help_config)
+			show_config_help
 			exit
 		;;
 		-s|-S|-Soft|-soft|-SOFT|--Soft|--soft|--SOFT|--Soft-Version|--soft-version|--Soft-version)
@@ -144,11 +234,21 @@ do
 			threads=${1#*=}
 		;;
 		--reference|--Reference|--REFERENCE|--references|--References|--REFERENCES|--ref|--Ref|--REF|--refs|--Refs|--REFS|-ref|-Ref|-REF|-reference|-references)
-			ReferencesFolder=${2}
+			if [[ -d "${2}" ]]
+			then
+				ReferencesFolder=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
+			else
+				ReferencesFolder="${2}"
+			fi
 			shift
 		;;
 		--reference=*|--Reference=*|--REFERENCE=*|--references=*|--References=*|--REFERENCES=*|--ref=*|--Ref=*|--REF=*|--refs=*|--Refs=*|--REFS=*|-ref=*|-Ref=*|-REF=*|-reference=*|-references=*)
-			ReferencesFolder=${1#*=}
+			if [[ -d "${1#*=}" ]]
+			then
+				ReferencesFolder=$(cd "$(dirname "${1#*=}")" && pwd)/$(basename "${1#*=}")
+			else
+				ReferencesFolder="${1#*=}"
+			fi
 		;;
 		--disable_ref_folder|--disable_ref)
 			ReferencesFolder=""
@@ -364,16 +464,20 @@ do
 			PROTevalue1=$2
 			shift
 		;;
+		--prot_evalue2)
+			PROTevalue2=$2
+			shift
+		;;
 		--gen_evalue1)
 			GENevalue1=$2
 			shift
 		;;
-		--16S_evalue1)
-			rDNAevalue1=$2
+		--gen_evalue2)
+			GENevalue2=$2
 			shift
 		;;
-		--prot_evalue2)
-			PROTevalue2=$2
+		--16S_evalue1)
+			rDNAevalue1=$2
 			shift
 		;;
 		--16S_evalue2)
@@ -434,15 +538,15 @@ do
 			rDNA16Scutoff=$2
 			shift
 		;;
+		--16S_min_cntg_length)
+			rDNAminCntgLength=$2
+			shift
+		;;
 #		--maxaccepts1)
 #			maxaccepts1=$2
 #			shift
 #		;;
-		--maxaccepts2)
-			maxaccepts2=$2
-			shift
-		;;
-		--maxaccepts)
+		--maxaccepts2|--maxaccepts)
 			maxaccepts2=$2
 			shift
 		;;
@@ -454,7 +558,22 @@ do
 			maxrejects2=$2
 			shift
 		;;
+		--allmaxrejects2)
+			maxrejects2=$2
+			genmaxrejects2=$2
+			shift
+		;;
+		--genmaxrejects2)
+			genmaxrejects2=$2
+			shift
+		;;
 		--maxrejects)
+			maxrejects1=$2
+			maxrejects2=$2
+			shift
+		;;
+		--allmaxrejects)
+			genmaxrejects2=$2
 			maxrejects1=$2
 			maxrejects2=$2
 			shift
@@ -465,6 +584,20 @@ do
 		--SedSplit|--sedsplit|--SEDSPLIT|--Sedsplit|--SEDsplit|--SEDSplit|--sedSPLIT|--sedSplit)
 			GenomeSplitMethod="SED"
 			GenomeCoverage=1
+		;;
+		--GenomeSplitMethod)
+			case $2 in
+				SED|Sed|sed)
+					GenomeSplitMethod="SED"
+				;;
+				PF|PyFasta|PYFASTA|Pyfasta|PyFASTA|PYfasta|PYFasta|pyFASTA|pyFasta|pf|Pf)
+					GenomeSplitMethod="PyFasta"
+				;;
+				*)
+					echo "Couldn't recognize genome split method. Using PyFasta."
+					GenomeSplitMethod="PyFasta"
+				;;
+			esac
 		;;
 		--GenCoverage)
 			GenomeCoverage=$2
@@ -483,7 +616,7 @@ do
 		--GenFragLength)
 			GenomeFragLength=$2
 			shift
-		;;
+		;; 
 		--KeepBlastDBs|--keepblastdbs|--keepbdb|--keepbdbs|--Keepbdb|--Keepbdbs)
 			KeepBlastDBs="yes"
 		;;
@@ -503,7 +636,7 @@ do
 	shift
 done
 
-
+echo "Starting program in folder ${address}, at $(date "+%X, %e/%m/%Y")"
 
 
 	# ======================================================================================================================================================================================== #
@@ -513,7 +646,6 @@ done
 
 
 # BEAF works in a modular fashion, so that the main pipeline will call different functions (modules) as it runs. Each step works in a separate function so that the program can continue from a specific function if ended abruptly (see "Continue function" in README.md)
-
 
 make_kp () # This function reorders the config.file in order to keep buckets in case they could be used more than once. This will prevent the program from copying, trimming and assessing the quality of trimmage more than once for the same data, reusing files.
 {
@@ -649,7 +781,7 @@ fi
 TimeHeader () # Generates the header for the Log.tsv file (full version).
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "2" ]]; then echo "******In this module, time is not measured"; else
-	echo "_________________________________________________________________________________________________________
+	echo "______|________|_____|_____|_________|______|____|_____|_______|____|_______|___________|_____________|__________|___________|____|__________|____________|_________|__________
 Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs|AvgSizeCntg|TotalSizeCntg|StdDevCntg|MaxCntgSize|ORFs|AvgSizeORF|TotalSizeORF|StdDevORF|MaxORFSize" >> $address/Log.tsv
 	echo "3" > $address/CR.step; CFLR="N"
 fi
@@ -658,7 +790,7 @@ fi
 SoftTimeHeader () # Generates the header for the Log.tsv file (soft version).
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "2" ]]; then echo "******In this module, time is not measured"; else
-	echo "_________________________________________________________________________________________________________
+	echo "______|________|_____|_____|_________|______|____|_____|_______|____|_______|___________|_____________|__________|___________|____|__________|____________|_________|__________
 Output|Sequence|Type1|Type2|Reference|Subref|Time|Reads|Buckets|ppm1|contigs|AvgSizeCntg|TotalSizeCntg|StdDevCntg|MaxCntgSize" >> $address/Log.tsv
 	echo "3" > $address/CR.step; CFLR="N"
 fi
@@ -949,17 +1081,17 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 			then
 				echo "# Continuing searches..."
 			else
-				if [[ -s $ReferencesFolder/$Ref ]]
+				if [[ -s $Ref ]]
 				then
 					GenomeCoverage=${GenomeCoverage2}
 					case $Ref in 
 						*.udb|*.UDB|*.uDB|*.Udb)
 							echo "### Using provided USEARCH database: $Ref"
-							cp $ReferencesFolder/$Ref $address/${BucketsFolder}/ReferenceGenome.udb
+							cp $Ref $address/${BucketsFolder}/ReferenceGenome.udb
 						;;
 						*)
 							echo "### Making database from reference genome $Ref..."
-							cat $ReferencesFolder/$Ref | awk NF > $address/${BucketsFolder}/RefGenome.fasta
+							cat $Ref | awk NF > $address/${BucketsFolder}/RefGenome.fasta
 							case $GenomeSplitMethod in
 								PyFasta|Pyfasta|pyfasta|PYFASTA|pyFasta|PyFASTA|pyFASTA|PYfasta|PYFasta|PF|pf|Pf|pF)
 									Overlap1=$(echo "$GenomeFragLength - $(echo "$GenomeFragLength / ${GenomeCoverage}" | bc)" | bc)
@@ -1007,7 +1139,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 								cat $address/${BucketsFolder}/SubRef_*_cov${GenomeCoverage}_compressed.fa > $address/${BucketsFolder}/RefGen_compressed.fa
 								rm -rf $address/${BucketsFolder}/SubRef_${sub%.f*}_cov${GenomeCoverage}_compressed.fa
 								echo "New udb" > $address/${BucketsFolder}/newudb.txt
-								Ref="$SubRef/Pooled_SubRefs.fasta"
+								Ref="$ReferencesFolder/$SubRef/Pooled_SubRefs.fasta"
 								echo "Pooled your SubReferences into a new Reference file at $Ref"
 							;;
 							*)	
@@ -1053,7 +1185,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 							touch $address/OUTPUT/${Out}/$buck.m8
 						else
 							echo -en "\r"; echo -e "# Searching against reference $Ref (id $GenID, evalue ${GENevalue} and maxrejects ${maxrejects1}) and keeping buckets... ${buck%.bk}/$buckets"
-							${usearch} -usearch_global $address/${BucketsFolder}/$buck -db $address/${BucketsFolder}/ReferenceGenome.udb -strand both -id $GenID -evalue ${GENevalue} --maxrejects ${maxrejects1} -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
+							${usearch} -usearch_global $address/${BucketsFolder}/$buck -db $address/${BucketsFolder}/ReferenceGenome.udb -strand both -id $GenID -evalue ${GENevalue} --maxaccepts 1 --maxrejects ${maxrejects1} -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
 							rm -rf $address/${BucketsFolder}/usearch.tmp
 							mv $address/OUTPUT/${Out}/$buck.m7 $address/OUTPUT/${Out}/$buck.m8
 							sed -i -e 1,1d $address/${BucketsFolder}/buckets_search.txt
@@ -1063,7 +1195,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				*)
 					for buck in `cat $address/${BucketsFolder}/buckets_search.txt`; do
 						echo -en "\r"; echo -e "# Searching against reference $Ref (id $GenID, evalue ${GENevalue} and maxrejects ${maxrejects1}) and deleting buckets... ${buck%.bk}/$buckets"
-						${usearch} -usearch_global $address/${BucketsFolder}/$buck -db $address/${BucketsFolder}/ReferenceGenome.udb -strand both -id $GenID -evalue ${GENevalue} --maxrejects ${maxrejects1} -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
+						${usearch} -usearch_global $address/${BucketsFolder}/$buck -db $address/${BucketsFolder}/ReferenceGenome.udb -strand both -id $GenID -evalue ${GENevalue} --,axaccepts 1 --maxrejects ${maxrejects1} -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
 						rm -rf $address/${BucketsFolder}/usearch.tmp
 						mv $address/OUTPUT/${Out}/$buck.m7 $address/OUTPUT/${Out}/$buck.m8
 						rm -rf $address/${BucketsFolder}/$buck
@@ -1075,7 +1207,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 			esac
 			case $KeepGenomeUDBs in
 				Y|y|YES|Yes|yes)
-					if [[ -s $ReferencesFolder/BEAF_GenomeUDBs_Folder/$(basename $ReferencesFolder/$Ref).udb ]]
+					if [[ -s $ReferencesFolder/BEAF_GenomeUDBs_Folder/$(basename $Ref).udb ]]
 					then
 						touch $address/${BucketsFolder}/ReferenceGenome.udb
 					else
@@ -1087,7 +1219,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 							else
 								mkdir $ReferencesFolder/BEAF_GenomeUDBs_Folder
 							fi
-							mv $address/${BucketsFolder}/ReferenceGenome.udb $ReferencesFolder/BEAF_GenomeUDBs_Folder/$(basename $ReferencesFolder/$Ref).udb
+							mv $address/${BucketsFolder}/ReferenceGenome.udb $ReferencesFolder/BEAF_GenomeUDBs_Folder/$(basename $Ref).udb
 						fi
 					fi
 				;;
@@ -1107,7 +1239,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				case $Ref in
 					*.fa|*.fasta|*.fas|*.faa|*.fna|*.fsa|*.FA|*.FASTA|*.FAS|*.FAA|*.FNA|*.FSA) # Tests if reference is in fasta format
 						echo "# Recognized $Ref file as fasta format. Making udb..."
-						cat $ReferencesFolder/$Ref | awk NF > $address/${BucketsFolder}/none
+						cat $Ref | awk NF > $address/${BucketsFolder}/none
 						sed -i '/>/d' $address/${BucketsFolder}/none
 						cat $address/${BucketsFolder}/none | tr -d '\n' | sed 's/.\{100\}/&\n>\n/g' | sed '1s/.*/>\n&/' | awk -vRS=">" '{$0=n$0;ORS=RT}++n' > $address/${BucketsFolder}/md8
 						if [[ $(tail -n 1 $address/${BucketsFolder}/md8 | grep ">" | wc -l) -gt 0 ]]
@@ -1161,14 +1293,19 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 		16S|16s|16) 
 			echo "# Starting searches..."
 			rm -rf $address/OUTPUT/${Out}/*.m7
-			if [[ ! -s $ReferencesFolder/$Ref ]]
+			if [[ ! -s $Ref ]]
 			then
-				if [[ -s $ReferencesFolder/nr97_green.cur.udb ]]
+				if [[ -s $ReferencesFolder/$Ref ]]
 				then
-					echo "Using a clustered Green Genes database (clustered to 97% identity) to search for OTUs."
-					Ref=nr97_green.cur.udb
+					Ref="$ReferencesFolder/$Ref"
 				else
-					echo "Couldn't find reference $Ref in References Folder $ReferencesFolder."
+					if [[ -s $ReferencesFolder/nr97_green.cur.udb ]]
+					then
+						echo "Using a clustered Green Genes database (clustered to 97% identity) to search for OTUs."
+						Ref=nr97_green.cur.udb
+					else
+						echo "Couldn't find reference $Ref in References Folder $ReferencesFolder."
+					fi
 				fi
 			fi
 			case $Keep in
@@ -1179,7 +1316,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 							touch $address/OUTPUT/${Out}/$buck.m8
 						else
 							echo -en "\r"; echo -e "# Searching against reference $Ref (id $rDNA16SID1, evalue ${rDNAevalue1} and maxrejects ${maxrejects1}) and keeping buckets... ${buck%.bk}/$buckets"
-							${usearch} -usearch_global $address/${BucketsFolder}/$buck -db $ReferencesFolder/$Ref -strand both -id $rDNA16SID1 -evalue ${rDNAevalue1} --maxrejects ${maxrejects1} --maxhits 1 -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
+							${usearch} -usearch_global $address/${BucketsFolder}/$buck -db $Ref -strand both -id $rDNA16SID1 -evalue ${rDNAevalue1} --maxrejects ${maxrejects1} --maxhits 1 -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
 							rm -rf $address/${BucketsFolder}/usearch.tmp
 							mv $address/OUTPUT/${Out}/$buck.m7 $address/OUTPUT/${Out}/$buck.m8
 							sed -i -e 1,1d $address/${BucketsFolder}/buckets_search.txt
@@ -1189,7 +1326,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				*)
 					for buck in `cat $address/${BucketsFolder}/buckets_search.txt`; do
 						echo -en "\r"; echo -e "# Searching against reference $Ref (id $rDNA16SID1, evalue ${rDNAevalue1} and maxrejects ${maxrejects1}) and deleting buckets... ${buck%.bk}/$buckets"
-						${usearch} -usearch_global $address/${BucketsFolder}/$buck -db $ReferencesFolder/$Ref -strand both -id $rDNA16SID1 -evalue ${rDNAevalue1} --maxrejects ${maxrejects1} --maxhits 1 -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
+						${usearch} -usearch_global $address/${BucketsFolder}/$buck -db $Ref -strand both -id $rDNA16SID1 -evalue ${rDNAevalue1} --maxrejects ${maxrejects1} --maxhits 1 -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm should be specified here
 						rm -rf $address/${BucketsFolder}/usearch.tmp
 						mv $address/OUTPUT/${Out}/$buck.m7 $address/OUTPUT/${Out}/$buck.m8
 						rm -rf $address/${BucketsFolder}/$buck
@@ -1226,16 +1363,21 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "7" ]]; then echo "******Skipp
 	ppm1=`expr 1000000 \* $hits / $reads`
 	touch $address/${BucketsFolder}/bucketpreviouslygeneratedmessage.tmp
 	echo -e "RESULTS:
-	File from: $R1\t$R2
-	Results: ${Out}
-	Reference: $Ref
-	SubReference(s): $SubRef
-	Reads: $reads
-	Buckets: $buckets
-	Hits: $hits
-	Portion in ppm: $ppm1
+	BEAF mode: $T1 / $T2
+	File from:	$R1\t$R2
+	Reference:	$Ref
+	SubReference(s):	$SubRef
+	Results:	${Out}
 
-	Threads: ${threads}
+	Line:	$CommandLine
+
+	Total Reads:	$reads
+	Buckets:	$buckets
+	Hits:	$hits
+	Portion in ppm:	$ppm1
+	Percentage of hits from total number of reads:	$(echo "$ppm1 / 10000" | bc -l)%
+
+	Threads:	${threads}
 " > $address/${BucketsFolder}/Log.txt
 	if [[ -s $address/${BucketsFolder}/bucketpreviouslygeneratedmessage.tmp ]]
 	then
@@ -1250,6 +1392,8 @@ Trimming, Quality Analysis and Buckets generation were performed in a previous r
 
 
 Time for the first filter: $(cat $address/OUTPUT/${Out}/filter1time.nmb)s" >> $address/${BucketsFolder}/Log.txt
+	echo "Time so far:	$(echo "$(date -u +%s) - $d1" |bc -l)
+Time without bucket: $(echo "$(date -u +%s) - $d1 - $(cat $address/${BucketsFolder}/BucketTotalTime.nmb)" | bc -l)" >> $address/${Out}/TotalTimeAfterFirstFilter
 	echo "$ppm1" > $address/OUTPUT/${Out}/ppm1.nmb
 	touch $address/${BucketsFolder}/reads.nmb
 	cp -r $address/${BucketsFolder}/reads.nmb $address/OUTPUT/${Out}
@@ -1316,11 +1460,15 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" ]]; then echo "******Skipp
 	then
 		mkdir $address/OUTPUT/${Out}/SubReferences
 		for sub in `cat $ReferencesFolder/$SubRef/udb_cov${GenomeCoverage}_List`; do
-			echo "Searching for SubReference $sub..."
-			${usearch} -usearch_global $address/OUTPUT/${Out}/hits.fasta -db $ReferencesFolder/$SubRef/$sub.cov${GenomeCoverage}.udb -strand both -id $GenID2 -evalue ${GENevalue2} --maxrejects ${maxrejects2} -matched $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta -threads ${threads} -quiet
-			if [[ ! -s $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta ]]
+			mkdir $address/OUTPUT/${Out}/SubReferences/${sub}
+			echo -e "# Searching against reference $SubRef/${sub} (id $GenID2, evalue ${GENevalue2} and maxrejects ${genmaxrejects2})..."
+			rm -rf $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta
+			${usearch} -usearch_global $address/OUTPUT/${Out}/hits.fasta -db $ReferencesFolder/$SubRef/$sub.cov${GenomeCoverage}.udb -strand both -id $GenID2 -evalue ${GENevalue2} --maxaccepts 1 --maxrejects ${genmaxrejects2} -matched $address/OUTPUT/${Out}/SubReferences/${sub}/$sub.hits.fasta -threads ${threads} -quiet
+			if [[ ! -s $address/OUTPUT/${Out}/SubReferences/${sub}/$sub.hits.fasta ]] 
 			then
-				echo "Couldn't find matches for SubReference $sub."
+				echo "  Couldn't find matches for SubReference $sub."
+			else
+				echo "  A total of $(grep -c ">" $address/OUTPUT/${Out}/SubReferences/${sub}/$sub.hits.fasta) reads were found for subreference $sub"
 			fi
 		done
 	fi
@@ -1332,15 +1480,16 @@ G_SPADES1 () # For genomes, starts SPADES process using high kmers (full version
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" ]]; then echo "******Skipping Assembly Module with High Kmers"; else
 	date -u +%s > $address/OUTPUT/${Out}/datestartspades.tmp
+	echo "Starting SPADES analyses..."
 	python ${spades} --threads ${threads} -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using high Kmers
 	case $T1 in 
 		G|g)
 			if [[ -d $ReferencesFolder/$SubRef ]]
 			then
 				for sub in `cat $ReferencesFolder/$SubRef/udb_cov${GenomeCoverage}_List`; do
-					if [[ -s $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta ]]
+					if [[ -s $address/OUTPUT/${Out}/SubReferences/${sub}/$sub.hits.fasta ]]
 					then
-						python ${spades} --threads ${threads} -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta -o $address/OUTPUT/${Out}/SubReferences/assembly_${sub}
+						python ${spades} --threads ${threads} -k 21,31,41,51,61,71,81,91,101,111,121 --only-assembler -s $address/OUTPUT/${Out}/SubReferences/${sub}/$sub.hits.fasta -o $address/OUTPUT/${Out}/SubReferences/${sub}/assembly_${sub} > $address/OUTPUT/${Out}/logspades.txt
 					fi
 				done
 			fi
@@ -1360,7 +1509,8 @@ G_SPADES2 () # For genomes, in case the first SPADES process with high kmers did
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" && `cat $address/CR.step` != "10" ]]; then echo "******Skipping Assembly Mode with Lower Kmers"; else
 	if [[ -s $address/OUTPUT/${Out}/assembly_${Out}/contigs.fasta ]]
 	then
-		echo "SPADES ran properly with high kmers"
+		cntg=`grep ">" $address/OUTPUT/${Out}/assembly_${Out}/contigs.fasta | wc -l`
+		echo "SPADES ran properly with high kmers, finding ${cntg} contigs."
 	else
 		echo "# SPADES couldn't find contigs for ${Out} with high kmers. Trying again with lower kmers."
 		rm -rf $address/OUTPUT/${Out}/assembly_${Out}
@@ -1368,19 +1518,27 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" && `cat $address/CR.step` 
 		python ${spades} --threads ${threads} -k 11,15,21,25,31,35,41,45,51 --only-assembler -s $address/OUTPUT/${Out}/hits.fasta -o $address/OUTPUT/${Out}/assembly_${Out} > $address/OUTPUT/${Out}/logspades.txt # Parameters for SPADES assembly for genomes should be specified here, using lower Kmers
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartspades2.tmp)" | bc -l > $address/OUTPUT/${Out}/spades2time.nmb
 		rm -rf $address/OUTPUT/${Out}/logspades.txt $address/OUTPUT/${Out}/datestartspades2.tmp
+		if [[ -s $address/OUTPUT/${Out}/assembly_${Out}/contigs.fasta ]]
+		then
+			cntg=`grep ">" $address/OUTPUT/${Out}/assembly_${Out}/contigs.fasta | wc -l`
+			echo "SPADES ran properly with lower kmers, finding ${cntg} contigs."
+		else
+			echo "No contigs were found for ${Out} even when using lower kmers. SPADES assemble failed.
+"
+		fi
 	fi
 	case $T1 in 
 		G|g)
 			if [[ -d $ReferencesFolder/$SubRef ]]
 			then
 				for sub in `cat $ReferencesFolder/$SubRef/udb_cov${GenomeCoverage}_List`; do
-					if [[ -s $address/OUTPUT/${Out}/SubReferences/assembly_${sub}/contigs.fasta ]]
+					if [[ -s $address/OUTPUT/${Out}/SubReferences/${sub}/assembly_${sub}/contigs.fasta ]]
 					then 
-						touch $address/OUTPUT/${Out}/SubReferences/assembly_${sub}/contigs.fasta
+						touch $address/OUTPUT/${Out}/SubReferences/${sub}/assembly_${sub}/contigs.fasta
 					else
-						if [[ -s $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta ]]
+						if [[ -s $address/OUTPUT/${Out}/SubReferences/${sub}/$sub.hits.fasta ]]
 						then
-							python ${spades} --threads ${threads} -k 11,15,21,25,31,35,41,45,51 --only-assembler -s $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta -o $address/OUTPUT/${Out}/SubReferences/assembly_${sub}
+							python ${spades} --threads ${threads} -k 11,15,21,25,31,35,41,45,51 --only-assembler -s $address/OUTPUT/${Out}/SubReferences/${sub}/$sub.hits.fasta -o $address/OUTPUT/${Out}/SubReferences/assembly_${sub} > $address/OUTPUT/${Out}/logspades.txt
 						fi
 					fi
 				done
@@ -1404,15 +1562,24 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 		date -u +%s > $address/OUTPUT/${Out}/datestartquast.tmp
 		if [[ -s $address/OUTPUT/${Out}/assembly_${Out}/contigs.fasta ]]
 		then
-			echo "# Analyzing draft putative genome of full reference...\n"
+			echo -e "# Analyzing draft putative genome of full reference...\n"
 			cp -r $address/OUTPUT/${Out}/assembly_${Out}/contigs.fasta $address/OUTPUT/${Out}/contigs.fasta
-			# tar -zcf $address/OUTPUT/${Out}/SPADES_results.tar.gz $address/OUTPUT/${Out}/assembly_${Out} --remove-files
+			# tar -zcf $address/OUTPUT/${Out}/SPADES_results.tar.gz -C $address/OUTPUT/${Out}/ assembly_${Out} --remove-files
 			rm -rf $address/OUTPUT/${Out}/assembly_*
-			python ${quast} --threads ${threads} --silent -r $ReferencesFolder/$Ref -o $address/OUTPUT/${Out}/assessment $address/OUTPUT/${Out}/contigs.fasta > $address/OUTPUT/${Out}/quastlog.txt # Assessment of assemble is done in this step
-			echo "\n### Compressing results..."
+			python ${quast} --threads ${threads} --silent -r $Ref -o $address/OUTPUT/${Out}/assessment $address/OUTPUT/${Out}/contigs.fasta > $address/OUTPUT/${Out}/quastlog.txt # Assessment of assemble is done in this step
+			rm -rf $address/OUTPUT/${Out}/quastlog.txt
 			if [[ -s $address/OUTPUT/${Out}/assessment ]]
 			then
-				tar -zcf $address/OUTPUT/${Out}/assessment.tar.gz $address/OUTPUT/${Out}/assessment --remove-files
+				echo "QUAST Assessment complete:
+	Duplication Ratio:	$(tail -n1 $address/OUTPUT/${Out}/assessment/summary/TXT/Duplication_ratio.txt | cut -d " " -f3)
+	Genome Fraction:	$(tail -n1 $address/OUTPUT/${Out}/assessment/summary/TXT/Genome_fraction.txt | cut -d " " -f3)
+	LGA50:	$(tail -n1 $address/OUTPUT/${Out}/assessment/summary/TXT/LGA50.txt | cut -d " " -f3)
+	NGA50:	$(tail -n1 $address/OUTPUT/${Out}/assessment/summary/TXT/NGA50.txt | cut -d " " -f3)
+	Number of misassemblies:	$(tail -n1 $address/OUTPUT/${Out}/assessment/summary/TXT/num_misassemblies | cut -d " " -f3)
+	Mismatches per 100kbp:	$(tail -n1 $address/OUTPUT/${Out}/assessment/summary/TXT/num_mismatches_per_100_kbp.txt | cut -d " " -f3)" > $address/OUTPUT/${Out}/Quastlog.tmp
+				echo "${Out} $(head -n2 $address/OUTPUT/${Out}/Quastlog.tmp | tail -n1)"
+				echo -e "### Compressing results..."
+				tar -zcf $address/OUTPUT/${Out}/assessment.tar.gz -C $address/OUTPUT/${Out}/ assessment --remove-files
 			fi
 			echo "# QUAST service is finished for the file going to OUTPUT/${Out}"
 		else
@@ -1423,21 +1590,33 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 				if [[ -d $ReferencesFolder/$SubRef ]]
 				then
 					for sub in `cat $ReferencesFolder/$SubRef/SubRef_fasta.list`; do
-						if [[ -s $address/OUTPUT/${Out}/SubReferences/assembly_${sub%.f*}/contigs.fasta ]]
+						if [[ -s $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assembly_${sub%.f*}/contigs.fasta ]]
 						then
-							mkdir $address/OUTPUT/${Out}/SubReferences/${sub%.f*}
-							echo "# Analyzing draft putative genome of $SubRef...\n"
-							cp -r $address/OUTPUT/${Out}/SubReferences/assembly_${sub%.f*}/contigs.fasta $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.fasta
-							rm -rf $address/OUTPUT/${Out}/SubReferences/assembly_${sub%.f*}
+							echo "# Analyzing draft putative genome of subreference $SubRef/${sub%.f*} using QUAST..."
+							cp -r $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assembly_${sub%.f*}/contigs.fasta $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.fasta
+							rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assembly_${sub%.f*}
 							python ${quast} --threads ${threads} --silent -r $ReferencesFolder/$SubRef/$sub -o $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.fasta > $address/OUTPUT/${Out}/quastlog.txt # Assessment of assemble is done in this step
-							echo "\n### Compressing results..."
-							if [[ -s $address/OUTPUT/${Out}/SubReferences/assessments/${sub%.f*}_assessment ]]
+							if [[ -s $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment ]]
 							then
-								tar -zcf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment.tar.gz $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment --remove-files
+								echo "QUAST Assessment of ${sub%.f*} complete:
+	Duplication Ratio:	$(tail -n1 $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment/summary/TXT/Duplication_ratio.txt | cut -d " " -f3)
+	Genome Fraction:	$(tail -n1 $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment/summary/TXT/Genome_fraction.txt | cut -d " " -f3)
+	LGA50:	$(tail -n1 $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment/summary/TXT/LGA50.txt | cut -d " " -f3)
+	NGA50:	$(tail -n1 $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment/summary/TXT/NGA50.txt | cut -d " " -f3)
+	Number of misassemblies:	$(tail -n1 $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment/summary/TXT/num_misassemblies.txt | cut -d " " -f3)
+	Mismatches per 100kbp:	$(tail -n1 $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment/summary/TXT/num_mismatches_per_100_kbp.txt | cut -d " " -f3)
+	Total number of hits:	$(grep -c ">" $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/${sub%.f*}.hits.fasta)
+	Percentage of hits from total number of reads:	$(echo "scale=3; $(grep -c ">" $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/${sub%.f*}.hits.fasta) / $(cat $address/${BucketsFolder}/reads.nmb)" | bc -l)" > $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/Quastlog.tmp
+								echo "${sub%.f*} $(head -n2 $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/Quastlog.tmp | tail -n1)"
+								echo -e "### Compressing results..."
+								tar -zcf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/assessment.tar.gz -C $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ assessment --remove-files
+							else
+								echo "QUAST Assessment of subreference $SubRef/${sub%.f*} failed."
 							fi
-							echo "# QUAST service is finished for SubReference $sub."
+								echo "# QUAST service is finished for the file going to OUTPUT/${Out}/SubReferences/${sub%.f*}/"
+
 						else
-							echo "# The proposed analysis of SubReference $sub could not continue due to problems in SPADES assembly."
+							echo "# The proposed analysis of ${Out} subrefere $SubRef/${sub%.f*} could not continue due to problems in SPADES assembly."
 						fi
 					done
 				fi
@@ -1508,7 +1687,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 	if [[ -s $address/OUTPUT/${Out}/contigs.fasta ]]
 	then
 		rm -rf $address/OUTPUT/${Out}/*.count; rm -rf $address/OUTPUT/${Out}/*.cntg; rm -rf $address/OUTPUT/*.sizes ; rm -rf $address/OUTPUT/${Out}/contigs.cntg.sizes
-		python ${SeqLength} $address/OUTPUT/${Out}/contigs.fasta > $address/OUTPUT/${Out}/contigs.cntg.sizes
+		python ${SeqLength} --OnlyPrintLength $address/OUTPUT/${Out}/contigs.fasta > $address/OUTPUT/${Out}/contigs.cntg.sizes
 		AvgSizeCntg=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $address/OUTPUT/${Out}/contigs.cntg.sizes`
 		TotalSizeCntg=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $address/OUTPUT/${Out}/contigs.cntg.sizes`
 		StdDevCntg=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $address/OUTPUT/${Out}/contigs.cntg.sizes`
@@ -1519,7 +1698,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 		if [[ -s $address/OUTPUT/${Out}/ORFs.fa ]]
 		then
 			rm -rf $address/OUTPUT/${Out}/*.count; rm -rf $address/OUTPUT/${Out}/*.cntg; rm -rf $address/OUTPUT/*.sizes ; rm -rf $address/OUTPUT/${Out}/ORFs.ORF.sizes
-			python ${SeqLength} $address/OUTPUT/${Out}/ORFs.fa > $address/OUTPUT/${Out}/ORFs.ORF.sizes
+			python ${SeqLength} --OnlyPrintLength $address/OUTPUT/${Out}/ORFs.fa > $address/OUTPUT/${Out}/ORFs.ORF.sizes
 			AvgSizeORF=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $address/OUTPUT/${Out}/ORFs.ORF.sizes`
 			TotalSizeORF=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $address/OUTPUT/${Out}/ORFs.ORF.sizes`
 			StdDevORF=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $address/OUTPUT/${Out}/ORFs.ORF.sizes`
@@ -1548,7 +1727,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 			if [[ -s $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.fasta ]]
 			then
 				rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/*.count; rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/*.cntg; rm -rf $address/OUTPUT/*.sizes ; rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.cntg.sizes
-				python ${SeqLength} $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.fasta > $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.cntg.sizes
+				python ${SeqLength} --OnlyPrintLength $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.fasta > $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.cntg.sizes
 				AvgSizeCntg=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.cntg.sizes`
 				TotalSizeCntg=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.cntg.sizes`
 				StdDevCntg=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.cntg.sizes`
@@ -1558,7 +1737,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 				if [[ -s $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.fa ]]
 				then
 					rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/*.count; rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/*.cntg; rm -rf $address/OUTPUT/*.sizes ; rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.ORF.sizes
-					python ${SeqLength} $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.fa > $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.ORF.sizes
+					python ${SeqLength} --OnlyPrintLength $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.fa > $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.ORF.sizes
 					AvgSizeORF=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.ORF.sizes`
 					TotalSizeORF=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.ORF.sizes`
 					StdDevORF=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.ORF.sizes`
@@ -1567,7 +1746,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 					rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/*.count; rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/*.cntg; rm -rf $address/OUTPUT/*.sizes ; rm -rf $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.ORF.sizes
 				fi
 			fi
-			echo "${sub%.f*}|$(grep -c ">" $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta)|$(expr 1000000 \* $(grep -c ">" $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta) / $reads)|$(grep -c ">" $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.fasta)|$TotalSizeCntg|$AvgSizeCntg|$StdDevCntg|$MaxCntg|$(grep -c ">" $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.fa)|$TotalSizeORF|$AvgSizeORF|$StdDevORF|$MaxORF" >> $address/OUTPUT/${Out}/tmp1.subs
+			echo "${sub%.f*}|$(grep -c ">" $address/OUTPUT/${Out}/SubReferences/${sub%.f*}.hits.fasta)|$(expr 1000000 \* $(grep -c ">" $address/OUTPUT/${Out}/SubReferences/${sub%.f*}.hits.fasta) / $reads)|$(grep -c ">" $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/contigs.fasta)|$TotalSizeCntg|$AvgSizeCntg|$StdDevCntg|$MaxCntg|$(grep -c ">" $address/OUTPUT/${Out}/SubReferences/${sub%.f*}/ORFs.fa)|$TotalSizeORF|$AvgSizeORF|$StdDevORF|$MaxORF" >> $address/OUTPUT/${Out}/tmp1.subs
 		done
 	fi
 	ORFStats=`cat $address/OUTPUT/${Out}/ORFStats.nmb`
@@ -1769,7 +1948,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "14" ]]; then echo "******Skip
 		Warnings="WARNING: Did not run SPADES properly"
 	fi
 	echo "$cntg" > $address/OUTPUT/${Out}/cntg.nmb
-	# tar -zcf $address/OUTPUT/${Out}/contigs/SPADES/SPADES_assembly_$File.tar.gz $address/OUTPUT/${Out}/assembly_${Out}_$File --remove-files
+	# tar -zcf $address/OUTPUT/${Out}/contigs/SPADES/SPADES_assembly_$File.tar.gz -C $address/OUTPUT/${Out}/ assembly_${Out}_$File --remove-files
 	rm -rf $address/OUTPUT/${Out}/assembly_*
 	echo "15" > $address/CR.step; CFLR="N"
 fi
@@ -1859,7 +2038,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skip
 	if [[ -s $address/OUTPUT/${Out}/contigs/contigs.$File.fasta ]]
 	then
 		rm -rf $address/OUTPUT/${Out}/contigs/*.count; rm -rf $address/OUTPUT/${Out}/contigs/*.cntg; rm -rf $address/OUTPUT/${Out}/contigs/$File.cntg.sizes
-		python ${SeqLength} $address/OUTPUT/${Out}/contigs/contigs.$File.fasta > $address/OUTPUT/${Out}/contigs/$File.cntg.sizes
+		python ${SeqLength} --OnlyPrintLength $address/OUTPUT/${Out}/contigs/contigs.$File.fasta > $address/OUTPUT/${Out}/contigs/$File.cntg.sizes
 		AvgSizeCntg=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $address/OUTPUT/${Out}/contigs/$File.cntg.sizes`
 		TotalSizeCntg=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $address/OUTPUT/${Out}/contigs/$File.cntg.sizes`
 		StdDevCntg=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $address/OUTPUT/${Out}/contigs/$File.cntg.sizes`
@@ -1867,7 +2046,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skip
 		if [[ -s $address/OUTPUT/${Out}/ORFs/${File}_ORFs.fasta ]]
 		then
 			rm -rf $address/OUTPUT/${Out}/ORFs/*.count; rm -rf $address/OUTPUT/${Out}/ORFs/*.cntg; rm -rf $address/OUTPUT/${Out}/ORFs/$File.ORF.sizes
-			python ${SeqLength} $address/OUTPUT/${Out}/ORFs/${File}_ORFs.fasta > $address/OUTPUT/${Out}/ORFs/$File.ORF.sizes
+			python ${SeqLength} --OnlyPrintLength $address/OUTPUT/${Out}/ORFs/${File}_ORFs.fasta > $address/OUTPUT/${Out}/ORFs/$File.ORF.sizes
 			AvgSizeORF=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $address/OUTPUT/${Out}/ORFs/$File.ORF.sizes`
 			TotalSizeORF=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $address/OUTPUT/${Out}/ORFs/$File.ORF.sizes`
 			StdDevORF=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $address/OUTPUT/${Out}/ORFs/$File.ORF.sizes`
@@ -1935,7 +2114,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "11" ]]; then echo "******Skip
 		cntg=`grep "^>" $address/OUTPUT/${Out}/contigs.fasta | wc -l`
 		echo "$cntg" > $address/OUTPUT/${Out}/cntg.nmb
 		rm -rf $address/OUTPUT/${Out}/*.count; rm -rf $address/OUTPUT/${Out}/*.cntg; rm -rf $address/OUTPUT/*.sizes ; rm -rf $address/OUTPUT/${Out}/contigs.cntg.sizes
-		python ${SeqLength} $address/OUTPUT/${Out}/contigs.fasta > $address/OUTPUT/${Out}/contigs.cntg.sizes
+		python ${SeqLength} --OnlyPrintLength $address/OUTPUT/${Out}/contigs.fasta > $address/OUTPUT/${Out}/contigs.cntg.sizes
 		AvgSizeCntg=`awk 'BEGIN{s=0;}{s=s + $1;}END{printf "%.5f", s/NR;}' $address/OUTPUT/${Out}/contigs.cntg.sizes`
 		TotalSizeCntg=`awk 'BEGIN{s=0;}{s=s+$1;}END{print s;}' $address/OUTPUT/${Out}/contigs.cntg.sizes`
 		StdDevCntg=`awk '{delta = $1 - avg; avg += delta / NR; mean2 += delta * ($1 - avg); } END { printf "%.5f", sqrt(mean2 / NR); }' $address/OUTPUT/${Out}/contigs.cntg.sizes`
@@ -1955,16 +2134,17 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "12" ]]; then echo "******Skip
 	then
 		cp -r $address/OUTPUT/${Out}/assembly_${Out}/contigs.fasta $address/OUTPUT/${Out}
 	fi
-	# tar -zcf $address/OUTPUT/${Out}/SPADES_results.tar.gz $address/OUTPUT/${Out}/assembly_${Out} --remove-files
+	# tar -zcf $address/OUTPUT/${Out}/SPADES_results.tar.gz -C $address/OUTPUT/${Out}/ assembly_${Out} --remove-files
 	rm -rf $address/OUTPUT/${Out}/headers.txt $address/OUTPUT/${Out}/uparse.txt $address/OUTPUT/${Out}/otus.fa $address/OUTPUT/${Out}/16Snr.fa $address/OUTPUT/${Out}/16S.fa $address/OUTPUT/${Out}/16S.relabeled.fa ; rm -rf $address/OUTPUT/${Out}/assembly_*
 	echo "# Analyzing 16S...
 Clustering sequences to 97% identity..."
 	date -u +%s > $address/OUTPUT/${Out}/datestartcluster.tmp
-	awk 'BEGIN{RS=">";ORS=""}length($0)>75{print ">"$0}' $address/OUTPUT/${Out}/hits.fasta > $address/OUTPUT/${Out}/16S.fa
+	python ${SeqLength} --Cut-off-MinLength 75 $address/OUTPUT/${Out}/hits.fasta > $address/OUTPUT/${Out}/16S.fa #only selects sequences with a length of 75 or more
 	mkdir $address/OUTPUT/${Out}/contigs
-	cat $address/OUTPUT/${Out}/contigs.fasta | sed 's/_length_/;length=/' | sed 's/_cov_.*/;size=&;/' | sed 's/_cov_//' | awk -v Out=${Out} -F "[;=]" 'BEGIN{RS=">";ORS=""}{round=sprintf("%.0f",$5)}$3>500{print ">" Out ";" $1 ";" $2 "=" $3 ";" $4 "=" round $6}' > $address/OUTPUT/${Out}/contigs/contig_over_500.fa
+	python ${SeqLength} --Cut-off-MinLength ${rDNAminCntgLength} $address/OUTPUT/${Out}/contigs.fasta | sed 's/_length_/;length=/' | sed 's/_cov_.*/;size=&;/' | sed 's/_cov_//' | awk -v Out=${Out} -F "[;=>]" '/^>/{round=sprintf("%.0f",$6);print ">" Out ";" $2 ";" $3 "=" $4 ";" $5 "=" round ; next}{print}' > $address/OUTPUT/${Out}/contigs/contigs_over_${rDNAminCntgLength}.fa
+	python ${SeqLength} --Cut-off-MaxLength ${rDNAminCntgLength} $address/OUTPUT/${Out}/contigs.fasta | sed 's/_length_/;length=/' | sed 's/_cov_.*/;size=&;/' | sed 's/_cov_//' | awk -v Out=${Out} -F "[;=>]" '/^>/{round=sprintf("%.0f",$6);print ">" Out ";" $2 ";" $3 "=" $4 ";" $5 "=" round ";Discarded_due_to_length" ; next}{print}' > $address/OUTPUT/${Out}/contigs/contigs_under_${rDNAminCntgLength}.fa
 	${usearch} -fastx_relabel $address/OUTPUT/${Out}/16S.fa -prefix "${Out};" -fastaout $address/OUTPUT/${Out}/16S.relabeled.fa -keep_annots -quiet > $address/OUTPUT/${Out}/usearchlog.txt
-	${usearch} -cluster_fast $address/OUTPUT/${Out}/16S.relabeled.fa -id 0.97 --maxaccepts 0 --maxrejects 0 -sizeout -centroids $address/OUTPUT/${Out}/16Snr.fa -threads ${threads}  -quiet  > $address/OUTPUT/${Out}/usearchlog.txt 
+	${usearch} -cluster_fast $address/OUTPUT/${Out}/16S.relabeled.fa -id ${rDNA16SID2} --maxaccepts 0 --maxrejects 0 -sizeout -centroids $address/OUTPUT/${Out}/16Snr.fa -threads ${threads}  -quiet  > $address/OUTPUT/${Out}/usearchlog.txt 
 	${usearch} -cluster_otus $address/OUTPUT/${Out}/16Snr.fa -otus $address/OUTPUT/${Out}/otus.fa -uparseout $address/OUTPUT/${Out}/uparse.txt -relabel "${Out};" -minsize 2 -quiet  > $address/OUTPUT/${Out}/usearchlog.txt
 	grep -w "OTU" $address/OUTPUT/${Out}/uparse.txt | grep -vw "chimera" | cut -f 1 > $address/OUTPUT/${Out}/headers.txt
 	python ${extpy} $address/OUTPUT/${Out}/headers.txt $address/OUTPUT/${Out}/16Snr.fa $address/OUTPUT/${Out}/16S.nonchimera > $address/OUTPUT/${Out}/extpylog.txt
@@ -1994,14 +2174,21 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "13" ]]; then echo "******Skip
 					echo "Couldn't find subreference $SubRef in References Folder $ReferencesFolder to search for OTUs."
 				fi
 		fi
-		echo "Starting second filter at ${rDNA16SID2} identity, evalue of ${rDNAevalue2}. Using maxaccepts ${maxaccepts2} and maxrejects ${maxrejects2}"
-		${usearch} -usearch_global $address/OUTPUT/${Out}/16S.nonchimera -db $ReferencesFolder/$SubRef -sizein -sizeout -strand plus -id ${rDNA16SID2} -evalue ${rDNAevalue2} --maxaccepts ${maxaccepts2} --maxrejects ${maxrejects2} -maxhits 1 -matched $address/OUTPUT/${Out}/16S.m7 -notmatched $address/OUTPUT/${Out}/16S.nm7 -otutabout $address/OUTPUT/${Out}/otu_table.seqidnum -blast6out $address/OUTPUT/${Out}/otu_blast6out.tsv -query_cov 0.${rDNA16Sqcov} -threads ${threads} -quiet -uc $address/OUTPUT/${Out}/map_nobarcode.uc > $address/OUTPUT/${Out}/usearchlog.txt  
-		echo "Starting filter for contigs, with the same options."
-		${usearch} -usearch_global $address/OUTPUT/${Out}/contigs/contig_over_500.fa -db $ReferencesFolder/$SubRef -sizein -sizeout -strand plus -id ${rDNA16SID2} -evalue ${rDNAevalue2} --maxaccepts ${maxaccepts2} --maxrejects ${maxrejects2} -maxhits 1 -matched $address/OUTPUT/${Out}/contigs/16S_contig.m7 -notmatched $address/OUTPUT/${Out}/contigs/16S_contig.nm7 -otutabout $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum -blast6out $address/OUTPUT/${Out}/contigs/otu_blast6out_contig.tsv -query_cov 0.${rDNA16Sqcov} -threads ${threads} -quiet -uc $address/OUTPUT/${Out}/contigs/map_nobarcode_contig.uc > $address/OUTPUT/${Out}/usearchlog.txt
+		if [[ -s $address/OUTPUT/${Out}/16S.nonchimera ]]
+		then
+			echo "Starting second filter at ${rDNA16SID2} identity, evalue of ${rDNAevalue2}. Using maxaccepts ${maxaccepts2} and maxrejects ${maxrejects2}"
+			${usearch} -usearch_global $address/OUTPUT/${Out}/16S.nonchimera -db $ReferencesFolder/$SubRef -sizein -sizeout -strand plus -id ${rDNA16SID2} -evalue ${rDNAevalue2} --maxaccepts ${maxaccepts2} --maxrejects ${maxrejects2} -maxhits 1 -matched $address/OUTPUT/${Out}/16S.m7 -notmatched $address/OUTPUT/${Out}/16S.nm7 -otutabout $address/OUTPUT/${Out}/otu_table.seqidnum -blast6out $address/OUTPUT/${Out}/otu_blast6out.tsv -query_cov 0.${rDNA16Sqcov} -threads ${threads} -quiet -uc $address/OUTPUT/${Out}/map_nobarcode.uc > $address/OUTPUT/${Out}/usearchlog.txt  
+			mv $address/OUTPUT/${Out}/otu_blast6out.tsv $address/OUTPUT/${Out}/otu_b6out.tsv
+		fi
+		if [[ -s $address/OUTPUT/${Out}/contigs/contigs_over_${rDNAminCntgLength}.fa ]]
+		then
+			echo "Starting filter for contigs, with the same options."
+			${usearch} -usearch_global $address/OUTPUT/${Out}/contigs/contigs_over_${rDNAminCntgLength}.fa -db $ReferencesFolder/$SubRef -sizein -sizeout -strand plus -id ${rDNA16SID2} -evalue ${rDNAevalue2} --maxaccepts ${maxaccepts2} --maxrejects ${maxrejects2} -maxhits 1 -matched $address/OUTPUT/${Out}/contigs/16S_contig.m7 -notmatched $address/OUTPUT/${Out}/contigs/16S_contig.nm7 -otutabout $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum -blast6out $address/OUTPUT/${Out}/contigs/otu_blast6out_contig.tsv -query_cov 0.${rDNA16Sqcov} -threads ${threads} -quiet -uc $address/OUTPUT/${Out}/contigs/map_nobarcode_contig.uc > $address/OUTPUT/${Out}/usearchlog.txt
+			mv $address/OUTPUT/${Out}/contigs/otu_blast6out_contig.tsv $address/OUTPUT/${Out}/contigs/otu_b6out_contig.tsv
+		fi
 		echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestart16sfilter2.tmp)" | bc -l > $address/OUTPUT/${Out}/16sfilter2time.nmb
 		rm -rf 	$address/OUTPUT/${Out}/datestart16sfilter2.tmp $address/OUTPUT/${Out}/usearchlog.txt
-		mv $address/OUTPUT/${Out}/otu_blast6out.tsv $address/OUTPUT/${Out}/otu_b6out.tsv
-		mv $address/OUTPUT/${Out}/contigs/otu_blast6out_contig.tsv $address/OUTPUT/${Out}/contigs/otu_b6out_contig.tsv
+
 	fi
 	sed 's/;size=/	/g' $address/OUTPUT/${Out}/otu_b6out.tsv > $address/OUTPUT/${Out}/16S.tsv
 	if [[ -s $address/OUTPUT/${Out}/16S.m8 ]]
@@ -2037,20 +2224,28 @@ Finished renaming matched sequences"
 		then 
 			touch $address/OUTPUT/${Out}/contigs/16S_contig.table
 		else
-			sed -i 's/>/>16S_/' $address/OUTPUT/${Out}/contigs/16S_contig.m7
-			cat $address/OUTPUT/${Out}/contigs/otu_b6out_contig.tsv > $address/OUTPUT/${Out}/contigs/16S_contig.table
+			if [[ -s $address/OUTPUT/${Out}/contigs/16S_contig.m7 ]]
+			then
+				sed -i 's/>/>16S_/' $address/OUTPUT/${Out}/contigs/16S_contig.m7
+				cat $address/OUTPUT/${Out}/contigs/otu_b6out_contig.tsv > $address/OUTPUT/${Out}/contigs/16S_contig.table
+			fi
 		fi
 		counter="1"
 		totalmatched=`cat $address/OUTPUT/${Out}/contigs/16S_contig.table | wc -l`
-		while read B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12 B12; do
-			name=`grep ^">$B2 " $ReferencesFolder/16S/Green.list  | sed 's/.*.k__/k__/g'`
-			echo -en "\r"; echo -en "Renaming matched contig sequences ($counter/$totalmatched)   "
-			sed -i "s@^.*@&;$name;ID_$B3;AligLength_$B5;eval_$B12;Bitscore_$B13@" $address/OUTPUT/${Out}/contigs/16S_contig.m7
-			((counter+=1))
-			sed -i 1,1d $address/OUTPUT/${Out}/contigs/16S_contig.table
-		done < $address/OUTPUT/${Out}/contigs/16S_contig.table
-		echo -e "
-Finished renaming matched contig sequences"
+		if [[ -s $address/OUTPUT/${Out}/contigs/16S_contig.table ]]
+		then
+			while read B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12 B12; do
+				name=`grep ^">$B2 " $ReferencesFolder/16S/Green.list  | sed 's/.*.k__/k__/g'`
+				echo -en "\r"; echo -en "Renaming matched contig sequences ($counter/$totalmatched)   "
+				sed -i "s@^>$B1.*@&;$name;ID_$B3;AligLength_$B5;eval_$B12;Bitscore_$B13@" $address/OUTPUT/${Out}/contigs/16S_contig.m7
+				((counter+=1))
+				sed -i 1,1d $address/OUTPUT/${Out}/contigs/16S_contig.table
+			done < $address/OUTPUT/${Out}/contigs/16S_contig.table
+			echo -e "
+	Finished renaming matched contig sequences"
+		else
+			echo "No contigs matched with reference $Ref"
+		fi
 	fi
 	cat $address/OUTPUT/${Out}/16S.m7 > $address/OUTPUT/${Out}/16S.m8
 	cat $address/OUTPUT/${Out}/contigs/16S_contig.m7 > $address/OUTPUT/${Out}/contigs/16S_contig.m8
@@ -2064,24 +2259,31 @@ Finished renaming matched contig sequences"
 		echo -e "Finished renaming Unknowns."
 	fi
 	mv $address/OUTPUT/${Out}/16S.m8 $address/OUTPUT/${Out}/16S.fasta
-	mv $address/OUTPUT/${Out}/16S.nm8 $address/OUTPUT/${Out}/DiscardedSequences_possible16S.fasta
+	cat $address/OUTPUT/${Out}/contigs/contigs_under_${rDNAminCntgLength}.fa $address/OUTPUT/${Out}/16S.nm8 > $address/OUTPUT/${Out}/DiscardedSequences_possible16S.fasta
+	rm -rf $address/OUTPUT/${Out}/16S.nm8 $address/OUTPUT/${Out}/contigs/contigs_under_${rDNAminCntgLength}.fa
 	mv $address/OUTPUT/${Out}/contigs/16S_contig.m8 $address/OUTPUT/${Out}/contigs/16S_contigs.fasta
 #	grep ">" $address/OUTPUT/${Out}/contigs/16S_contigs.fasta | wc -l
 	mv $address/OUTPUT/${Out}/contigs/16S_contig.nm7 $address/OUTPUT/${Out}/contigs/Discarded_Contig_Sequences_possible16S.fasta
 	cat $address/OUTPUT/${Out}/map_nobarcode.uc | awk -F "\t" -v Out=${Out} '{if ($9 ~ /;$/) print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "barcodelabel=" Out ";\t" $10 ; else print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 ";barcodelabel=" Out "\t" $10}' > $address/OUTPUT/${Out}/map.uc
 	cat $address/OUTPUT/${Out}/contigs/map_nobarcode_contig.uc | awk -F "\t" -v Out=${Out} '{if ($9 ~ /;$/) print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "barcodelabel=" Out ";\t" $10 ; else print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 ";barcodelabel=" Out "\t" $10}' > $address/OUTPUT/${Out}/contigs/map_contig.uc
 	echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartrenaming.tmp)" | bc -l > $address/OUTPUT/${Out}/renamingtime.nmb
-	rm -rf $address/OUTPUT/${Out}/16S.table $address/OUTPUT/${Out}/16S.m7 $address/OUTPUT/${Out}/16S.m8 $address/OUTPUT/${Out}/16S.nm8 $address/OUTPUT/${Out}/16S.nm7 $address/OUTPUT/${Out}/16S.tsv $address/OUTPUT/${Out}/map_nobarcode.uc $address/OUTPUT/${Out}/contigs/contig_over_500.fa $address/OUTPUT/${Out}/contigs/16S_contig.table $address/OUTPUT/${Out}/contigs/16S_contig.m7 $address/OUTPUT/${Out}/contigs/16S_contig.m8 $address/OUTPUT/${Out}/contigs/16S_contig.nm8 $address/OUTPUT/${Out}/contigs/16S_contig.nm7 $address/OUTPUT/${Out}/contigs/16S_contig.tsv $address/OUTPUT/${Out}/contigs/map_nobarcode_contig.uc $address/OUTPUT/${Out}/datestartrenaming.tmp 
+	rm -rf $address/OUTPUT/${Out}/16S.table $address/OUTPUT/${Out}/16S.m7 $address/OUTPUT/${Out}/16S.m8 $address/OUTPUT/${Out}/16S.nm8 $address/OUTPUT/${Out}/16S.nm7 $address/OUTPUT/${Out}/16S.tsv $address/OUTPUT/${Out}/map_nobarcode.uc $address/OUTPUT/${Out}/contigs/contigs_over_${rDNAminCntgLength}.fa $address/OUTPUT/${Out}/contigs/contigs_under_${rDNAminCntgLength}.fa $address/OUTPUT/${Out}/contigs/16S_contig.table $address/OUTPUT/${Out}/contigs/16S_contig.m7 $address/OUTPUT/${Out}/contigs/16S_contig.m8 $address/OUTPUT/${Out}/contigs/16S_contig.nm8 $address/OUTPUT/${Out}/contigs/16S_contig.nm7 $address/OUTPUT/${Out}/contigs/16S_contig.tsv $address/OUTPUT/${Out}/contigs/map_nobarcode_contig.uc $address/OUTPUT/${Out}/datestartrenaming.tmp 
 	echo "14" > $address/CR.step; CFLR="N"
 fi
 }
 
-PCoA_Maker ()
+PCA_Maker ()
 {
-	if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "14" ]]; then echo "******Skipping PCoA_Maker analysis"; else
-	echo -n "Starting PCoA analysis..."
-	python ${PCoAmaker} $address/OUTPUT/${Out}/16S.fasta $address/OUTPUT/${Out}/PCoA.png > $address/OUTPUT/${Out}/PCoAlog.txt
-	python ${PCoAmaker} $address/OUTPUT/${Out}/contigs/16S_contigs.fasta $address/OUTPUT/${Out}/contigs/PCoA_contig.png > $address/OUTPUT/${Out}/PCoAlog.txt
+	if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "14" ]]; then echo "******Skipping PCA_Maker analysis"; else
+	echo -n "Starting PCA analysis..."
+	if [[ "$(grep -m2 -c '>' $address/OUTPUT/${Out}/16S.fasta)" -gt 1 ]]
+	then
+		python ${PCAmaker} $address/OUTPUT/${Out}/16S.fasta $address/OUTPUT/${Out}/PCoA.png > $address/OUTPUT/${Out}/PCoAlog.txt
+	fi
+	if [[ "$(grep -m2 -c '>' $address/OUTPUT/${Out}/contigs/16S_contigs.fasta)" -gt 1 ]]
+	then
+		python ${PCAmaker} $address/OUTPUT/${Out}/contigs/16S_contigs.fasta $address/OUTPUT/${Out}/contigs/PCoA_contig.png > $address/OUTPUT/${Out}/PCoAlog.txt
+	fi
 	rm -rf $address/OUTPUT/${Out}/16S.nonchimera $address/OUTPUT/${Out}/PCoAlog.txt
 	echo "    Done!"
 	echo "15" > $address/CR.step; CFLR="N"
@@ -2096,12 +2298,41 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "15" ]]; then echo "******Skip
 	sed -i '1,1d' $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum
 	sort -S 50% --parallel=${threads} -k1,1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.ord
 	sort -S 50% --parallel=${threads} -k1,1 $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum > $address/OUTPUT/${Out}/contigs/otu_table_contig.ord
-	join -1 1 -2 1 -o 1.2,2.2 $ReferencesFolder/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/otu_table.ord | sed 's/ /\t/g' | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.otus
-	join -1 1 -2 1 -o 1.2,2.2 $ReferencesFolder/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/contigs/otu_table_contig.ord | sed 's/ /\t/g' | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/contigs/otu_table_contig.otus
-	awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/otu_table.otus | sort -S 50% --parallel=${threads} -V | awk -v cutoff=${rDNA16Scutoff} '{if ($2>cutoff) print}' > $address/OUTPUT/${Out}/otu_table.sum
-	awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/contigs/otu_table_contig.otus | sort -S 50% --parallel=${threads} -V | awk -v cutoff=${rDNA16Scutoff} '{if ($2>(cutoff / 10)) print}' > $address/OUTPUT/${Out}/contigs/otu_table_contig.sum
-	cat $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/otu_table.sum > $address/OUTPUT/${Out}/otu_table.tsv
-	cat $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/contigs/otu_table_contig.sum > $address/OUTPUT/${Out}/contigs/otu_table_contig.tsv
+	if [[ -s $ReferencesFolder/16S/ID_2_OTU.txt ]]
+	then
+		join -1 1 -2 1 -o 1.2,2.2 $ReferencesFolder/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/otu_table.ord | sed 's/ /\t/g' | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.otus
+		awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/otu_table.otus | sort -S 50% --parallel=${threads} -V | awk -v cutoff=${rDNA16Scutoff} '{if ($2>cutoff) print}' > $address/OUTPUT/${Out}/otu_table.sum
+		cat $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/otu_table.sum > $address/OUTPUT/${Out}/otu_table.tsv
+		sq=`grep -c ">" $address/OUTPUT/${Out}/16S.fasta`
+		echo "$sq reads matched to $(cat $address/OUTPUT/${Out}/otu_table.sum | wc -l) OTUs"
+		if [[ -s $address/OUTPUT/${Out}/contigs/otu_table_contig.ord ]]
+		then
+			join -1 1 -2 1 -o 1.2,2.2 $ReferencesFolder/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/contigs/otu_table_contig.ord | sed 's/ /\t/g' | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/contigs/otu_table_contig.otus
+			awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/contigs/otu_table_contig.otus | sort -S 50% --parallel=${threads} -V | awk -v cutoff=${rDNA16Scutoff} '{if ($2>(cutoff / 10)) print}' > $address/OUTPUT/${Out}/contigs/otu_table_contig.sum
+			cntg=`grep -c ">" $address/OUTPUT/${Out}/contigs/16S_contigs.fasta`
+			echo "$cntg contigs matched to $(cat $address/OUTPUT/${Out}/contigs/otu_table_contig.sum | wc -l) OTUs"
+			cat $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/contigs/otu_table_contig.sum > $address/OUTPUT/${Out}/contigs/otu_table_contig.tsv
+		else
+			rm -rf $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum $address/OUTPUT/${Out}/contigs/otu_table_contig.ord
+		fi
+	else
+		if [[ -s $address/OUTPUT/${Out}/otu_table.ord ]]
+		then
+			sq=`grep -c ">" $address/OUTPUT/${Out}/16S.fasta`
+			echo "$sq reads matched to $(cat $address/OUTPUT/${Out}/otu_table.ord | wc -l) OTUs"
+			cat $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/otu_table.ord > $address/OUTPUT/${Out}/otu_table.tsv
+		else
+			rm -rf $address/OUTPUT/${Out}/otu_table.ord $address/OUTPUT/${Out}/otu_table.tsv
+		fi
+		if [[ -s $address/OUTPUT/${Out}/contigs/otu_table_contig.ord ]]
+		then
+			cntg=`grep -c ">" $address/OUTPUT/${Out}/contigs/16S_contigs.fasta`
+			echo "$cntg contigs matched to $(cat $address/OUTPUT/${Out}/contigs/otu_table_contig.ord | wc -l) OTUs"
+			cat $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/contigs/otu_table_contig.ord > $address/OUTPUT/${Out}/contigs/otu_table_contig.tsv
+		else
+			rm -rf $address/OUTPUT/${Out}/contigs/otu_table_contig.ord $address/OUTPUT/${Out}/contigs/otu_table_contig.tsv
+		fi
+	fi
 	rm -rf $address/OUTPUT/${Out}/otu_table.ord $address/OUTPUT/${Out}/otu_table.otus $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/otu_table.sum $address/OUTPUT/${Out}/contigs/otu_table_contig.ord $address/OUTPUT/${Out}/contigs/otu_table_contig.otus $address/OUTPUT/${Out}/contigs/otu_table_contig.sum
 	echo "16" > $address/CR.step; CFLR="N"
 fi
@@ -2111,27 +2342,57 @@ rDNA_TaxonFinding ()
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skipping Taxon Analysis"; else
 	rm -rf $address/OUTPUT/${Out}/taxons $address/OUTPUT/${Out}/contigs/taxons
-	mkdir $address/OUTPUT/${Out}/taxons $address/OUTPUT/${Out}/contigs/taxons
-	while read otunum counts; do
-		echo "$counts	$(grep -m 1 -w "$otunum" $ReferencesFolder/16S/ID_2_Taxon.txt)" >> $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
-	done < $address/OUTPUT/${Out}/otu_table.tsv
-	while read otunum counts; do
-		echo "$counts	$(grep -m 1 -w "$otunum" $ReferencesFolder/16S/ID_2_Taxon.txt)" >> $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre
-	done < $address/OUTPUT/${Out}/contigs/otu_table_contig.tsv
-	sed -i -e 1,1d $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
-	sed -i -e 1,1d $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre
-	echo "Counts	SeqIDnumber	OTU	Kingdom	Phylum	Class	Order	Family	Genus	Species" > $address/OUTPUT/${Out}/taxons/associatedtaxons.header
-	cat $address/OUTPUT/${Out}/taxons/associatedtaxons.header $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre > $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.tsv
-	cat $address/OUTPUT/${Out}/taxons/associatedtaxons.header $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre > $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.tsv
-	while read seqidnum counts; do
-		echo "$counts	$(grep -m 1 ">${seqidnum} " $ReferencesFolder/16S/Green.list)" >> $address/OUTPUT/${Out}/taxons/headers_counts.pre
-	done < $address/OUTPUT/${Out}/otu_table.seqidnum
-	while read seqidnum counts; do
-		echo "$counts	$(grep -m 1 ">${seqidnum} " $ReferencesFolder/16S/Green.list)" >> $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.pre
-	done < $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum
-	echo "Counts	Full_Header" > $address/OUTPUT/${Out}/taxons/counts_fullheader.header
-	cat $address/OUTPUT/${Out}/taxons/counts_fullheader.header $address/OUTPUT/${Out}/taxons/headers_counts.pre > $address/OUTPUT/${Out}/taxons/headers_counts.tsv
-	cat $address/OUTPUT/${Out}/taxons/counts_fullheader.header $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.pre > $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.tsv
+	if [[ -s $ReferencesFolder/16S/ID_2_Taxon.txt ]]
+	then
+		if [[ -s $address/OUTPUT/${Out}/otu_table.tsv ]]
+		then
+			mkdir $address/OUTPUT/${Out}/taxons
+			while read otunum counts; do
+				echo "$counts	$(grep -m 1 -w "${otunum}" $ReferencesFolder/16S/ID_2_Taxon.txt)" >> $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
+			done < $address/OUTPUT/${Out}/otu_table.tsv
+			sed -i -e 1,1d $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
+		fi
+		if [[ -s $address/OUTPUT/${Out}/contigs/otu_table_contig.tsv ]]
+		then
+			mkdir $address/OUTPUT/${Out}/contigs/taxons
+			while read otunum counts; do
+				echo "$counts	$(grep -m 1 -w "${otunum}" $ReferencesFolder/16S/ID_2_Taxon.txt)" >> $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre
+			done < $address/OUTPUT/${Out}/contigs/otu_table_contig.tsv
+			sed -i -e 1,1d $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre
+		fi
+		echo "Counts	SeqIDnumber	OTU	Kingdom	Phylum	Class	Order	Family	Genus	Species" > $address/OUTPUT/${Out}/taxons/associatedtaxons.header
+		if [[ -s $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre ]]
+		then
+			cat $address/OUTPUT/${Out}/taxons/associatedtaxons.header $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre > $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.tsv
+		fi
+		if [[ -s $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre ]]
+		then
+			cat $address/OUTPUT/${Out}/taxons/associatedtaxons.header $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre > $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.tsv
+		fi
+		echo "Counts	Full_Header" > $address/OUTPUT/${Out}/taxons/counts_fullheader.header
+		if [[ -s $address/OUTPUT/${Out}/otu_table.seqidnum ]]
+		then
+			while read seqidnum counts; do
+				echo "$counts	$(grep -w -m 1 ">${seqidnum}" $ReferencesFolder/16S/Green.list)" >> $address/OUTPUT/${Out}/taxons/headers_counts.pre
+			done < $address/OUTPUT/${Out}/otu_table.seqidnum
+			if [[ -s $address/OUTPUT/${Out}/taxons/headers_counts.pre ]]
+			then
+				cat $address/OUTPUT/${Out}/taxons/counts_fullheader.header $address/OUTPUT/${Out}/taxons/headers_counts.pre > $address/OUTPUT/${Out}/taxons/headers_counts.tsv
+			fi
+		fi
+		if [[ -s $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum ]]
+		then
+			while read seqidnum counts; do
+				echo "$counts	$(grep -w -m 1 ">${seqidnum}" $ReferencesFolder/16S/Green.list)" >> $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.pre
+			done < $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum
+			if [[ -s $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.pre ]]
+			then
+				cat $address/OUTPUT/${Out}/taxons/counts_fullheader.header $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.pre > $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.tsv
+			fi
+		fi
+	else
+		echo "Couldn't find the file with taxons on '$ReferencesFolder/16S/ID_2_Taxon.txt'"
+	fi
 	rm -rf $address/OUTPUT/${Out}/taxons/*.pre $address/OUTPUT/${Out}/taxons/*.header ; rm -rf $address/OUTPUT/${Out}/contigs/taxons/*.pre
 	rm -rf $address/OUTPUT/${Out}/otu_table.seqidnum $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum
 	echo "17" > $address/CR.step; CFLR="N"
@@ -2429,8 +2690,16 @@ Time for second SPADES run: $(cat $address/OUTPUT/${Out}/spades2time.nmb | awk '
 		echo "Total time for Reference $Ref with Subreference $SubRef: $d3 seconds
 	Total time excluding time to trim, analyse sequence quality and generate buckets: $(echo $d3 - $BucketTotalTime | bc -l) seconds" >> $address/OUTPUT/${Out}/fulltime.tmp
 	fi
-	touch $address/OUTPUT/${Out}/log.tmp1
-	cat $address/OUTPUT/${Out}/log.tmp1 $address/OUTPUT/${Out}/fulltime.tmp >> $address/OUTPUT/${Out}/Log.txt
+	echo "
+
+" >> $address/OUTPUT/${Out}/log.tmp1
+	echo "
+
+" >> $address/OUTPUT/${Out}/fulltime.tmp
+	echo "
+
+" >> $address/OUTPUT/${Out}/Quastlog.tmp
+	cat $address/OUTPUT/${Out}/fulltime.tmp $address/OUTPUT/${Out}/log.tmp1 $address/OUTPUT/${Out}/Quastlog.tmp >> $address/OUTPUT/${Out}/Log.txt
 	if [[ -s $address/OUTPUT/${Out}/contigs.fasta ]]
 	then 
 		${pigz} -p ${threads} $address/OUTPUT/${Out}/contigs.fasta
@@ -2462,7 +2731,7 @@ Time for second SPADES run: $(cat $address/OUTPUT/${Out}/spades2time.nmb | awk '
 			rm -rf $address/OUTPUT/${Out}/log.tmp1
 		;;
 	esac
-	rm -rf $address/OUTPUT/${Out}/contigs.fasta $address/OUTPUT/${Out}/log.tmp $address/OUTPUT/${Out}/fulltime.tmp $address/OUTPUT/${Out}/list; rm -rf $address/OUTPUT/${Out}/*.time2; rm -rf $address/OUTPUT/${Out}/*.rev; rm -rf $address/OUTPUT/${Out}/*.hits ; rm -rf $address/OUTPUT/${Out}/*time.nmb ; rm -rf $address/OUTPUT/${Out}/*time.tmp $address/OUTPUT/${Out}/log.tmps
+	rm -rf $address/OUTPUT/${Out}/contigs.fasta $address/OUTPUT/${Out}/log.tmp $address/OUTPUT/${Out}/fulltime.tmp $address/OUTPUT/${Out}/Quastlog.tmp $address/OUTPUT/${Out}/list; rm -rf $address/OUTPUT/${Out}/*.time2; rm -rf $address/OUTPUT/${Out}/*.rev; rm -rf $address/OUTPUT/${Out}/*.hits ; rm -rf $address/OUTPUT/${Out}/*time.nmb ; rm -rf $address/OUTPUT/${Out}/*time.tmp $address/OUTPUT/${Out}/log.tmps
 	echo "19" > $address/CR.step; CFLR="N"
 fi
 }
@@ -2702,20 +2971,50 @@ Threads = ${threads}
 		d1=`date -u "+%s"`
 		case $T1 in
 			G|g)
-				if [[ -d $ReferencesFolder/$SubRef ]]
+				if [[ -s $ReferencesFolder/$Ref ]]
+				then 
+					Ref="$ReferencesFolder/$Ref"
+				else
+					if [[ ! -s $Ref ]]
+					then
+						if [[ ! -d ${ReferencesFolder}/$Subref ]]
+						then
+							echo "Couldn't find your Reference $Ref (neither as full path nor in the References_Folder)"
+							exit exit exit
+						fi
+					fi
+				fi
+				if [[ -d ${ReferencesFolder}/${SubRef} ]]
 				then
-					echo -e "\n# Starting work in file $R1 with $Ref as reference and genomes in $ReferencesFolder/$SubRef as subreferences, at $(date '+%X %e/%m/%Y'), going to ${Out}\n"
+					if [[ -s $Ref ]]
+					then
+						echo -e "\n# Starting work in file $R1 with $Ref as reference and genomes in $ReferencesFolder/$SubRef as subreferences, at $(date '+%X %e/%m/%Y'), going to ${Out}\n"
+					else
+						echo -e "\n# Starting work in file $R1 with a pooled reference made from genomes in $ReferencesFolder/$SubRef (subreferences) at $(date '+%X %e/%m/%Y'), going to ${Out}\n"
+					fi
 				else
 					echo -e "\n# Starting work in file $R1 with $Ref as reference, at $(date '+%X %e/%m/%Y'), going to ${Out}\n"
 				fi
+ 				CommandLine="$0 --config=$ConfigFile --output=$address --threads=$threads --references $ReferencesFolder --maxaccepts2=$maxaccepts2 --maxrejects1=$maxrejects1 --maxrejects2=$maxrejects2 --gen_id1=$GenID1 --gen_id2=$GenID2 --gen_evalue1=$GENevalue1 --gen_evalue2=$GENevalue2 --GenomeSplitMethod=$GenomeSplitMethod --GenCoverage1=$GenomeCoverage1 --GenCoverage2=$GenomeCoverage2 --GenFragLength=$GenomeFragLength" 
 			;;
 			P|p|N|n)
+				if [[ -s $ReferencesFolder/$Ref ]]
+				then 
+					Ref="$ReferencesFolder/$Ref"
+				else
+					if [[ ! -s $Ref ]]
+					then
+						echo "Couldn't find your Reference $Ref (neither as full path nor in the References_Folder)"
+						exit exit exit
+					fi
+				fi
 				echo -e "\n# Starting work in file $R1 with $Ref as reference for the first filter and databases in folder ${SubRef} as subreferences, at $(date '+%X %e/%m/%Y'), going to ${Out}\n"
+				CommandLine="$0 --config=$ConfigFile --output=$address --threads=$threads --references $ReferencesFolder --maxaccepts2=$maxaccepts2 --maxrejects1=$maxrejects1 --maxrejects2=$maxrejects2 --prot_id1=$ProtID1 --prot_id2=$ProtID2 --prot_evalue1=$PROTevalue1 --prot_evalue2=$PROTevalue2 --prot_qcov1=$PROTqcovHits --prot_qcov2=$PROTqcovORFs"
 			;;
 			16S|16s|16)
 				if [[ ! -s $ReferencesFolder/$Ref ]]
 				then
-					if [[ -s $ReferencesFolder/nr97_green.cur.udb ]]
+					if [[ ! -s $Ref && -s $ReferencesFolder/nr97_green.cur.udb ]]
 					then
 						echo "Using a clustered Green Genes database (clustered to 97% identity) to search for OTUs."
 						Ref=nr97_green.cur.udb
@@ -2723,10 +3022,10 @@ Threads = ${threads}
 						echo "Couldn't find reference $Ref in References Folder $ReferencesFolder."
 					fi
 				fi
-				echo -e "\n# Starting work in file $R1 with $Ref as reference for the first filter ${SubRef} as reference for the second filter, at $(date '+%X %e/%m/%Y'), going to ${Out}\n"
+
 				if [[ ! -s $ReferencesFolder/$SubRef ]]
 				then
-						if [[ -s $ReferencesFolder/nr100_green.cur.udb ]]
+						if [[ ! -s $SubRef && -s $ReferencesFolder/nr100_green.cur.udb ]]
 						then
 							echo "Using the full Green Genes database (clustered to 100% identity) to search for OTUs."
 							SubRef=nr100_green.cur.udb
@@ -2734,7 +3033,8 @@ Threads = ${threads}
 							echo "Couldn't find subreference $SubRef in References Folder $ReferencesFolder to search for OTUs."
 						fi
 				fi
-				echo -e "\n# Starting work in file $R1 with $Ref as reference for the first filter and $SubRef as reference for OTU search, going to ${Out}\n"
+				echo -e "\n# Starting work in file $R1 with $Ref as reference for the first filter ${SubRef} as reference for the second filter, at $(date '+%X %e/%m/%Y'), going to ${Out}\n"
+ 				CommandLine="$0 --config=$ConfigFile --output=$address --threads=$threads --references $ReferencesFolder --maxaccepts2=$maxaccepts2 --maxrejects1=$maxrejects1 --maxrejects2=$maxrejects2 --16S_id1=$rDNA16SID1 --16S_id2=$rDNA16SID2 --16S_evalue1=$rDNAevalue1 --16S_evalue2=$rDNAevalue2 --16S_qcov=$rDNA16Sqcov --16S_cutoff=$rDNA16Scutoff --16S_min_cntg_length=$rDNAminCntgLength"
 			;;
 		esac
 		BucketsFolder="Bucket_$(basename $R1 | sed 's/.gz//' | sed 's/\..*//')"
@@ -2937,7 +3237,7 @@ Threads = ${threads}
 					rDNA_Contig
 					rDNA_Chimeras
 					rDNA_Filter2
-					PCoA_Maker
+					PCA_Maker
 					rDNA_Abundance
 					rDNA_TaxonFinding
 				else
@@ -2993,7 +3293,12 @@ SoftBEAF () # The pipeline BEAF will run when using soft version.
 	SoftTimeHeader
 	while read T1 T2 R1 R2 Ref SubRef Out Keep; do
 		d1=`date -u "+%s"`
-		echo -e "\n# Starting work in file $R1 with $Ref as reference, going to ${Out}\n"
+		if [[ -d $ReferencesFolder/$SubRef ]]
+		then
+			echo -e "\n# Starting work in file $R1 with $Ref as reference and $SubRef as subreference, going to ${Out}\n"
+		else
+			echo -e "\n# Starting work in file $R1 with $Ref as reference, going to ${Out}\n"
+		fi
 		BucketsFolder="Bucket_$(basename $R1 | sed 's/.gz//' | sed 's/\..*//')"
 		if [[ -d $address/${BucketsFolder} ]]
 		then
