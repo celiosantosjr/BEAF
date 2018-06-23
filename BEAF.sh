@@ -3,23 +3,23 @@
 address=$(cd "$(dirname "")" && pwd)/$(basename "")
 ConfigFile=$(cd "$(dirname "config.file")" && pwd)/$(basename "config.file")
 
-spades="/Path/To/SPADES"
-quast="/Path/To/QUAST"
-usearch="/Path/To/USEARCH"
-fastqc="/Path/To/FastQC"
-cdhit="/Path/To/cd-hit"
-cutadapt="/Path/To/cutadapt"
-pyfasta="/Path/To/PyFasta"
-pigz="/Path/To/pigz"
-orffinder="/Path/To/bb.orffinder.pl"
+spades="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/spades/SPAdes-3.11.0/bin/spades.py"
+quast="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/quast/metaquast.py"
+usearch="/bin/usearch"
+fastqc="/usr/local/bin/fastqc"
+cdhit="/usr/lib/cd-hit/cd-hit"
+cutadapt="/usr/local/bin/cutadapt"
+pyfasta="/usr/local/bin/pyfasta"
+pigz="/usr/local/bin/pigz"
 
-LIB="/Path/To/Lib/"
+LIB="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/"
+orffinder="$LIB/bb.orffinder.pl"
 extpy="$LIB/ext.py"
 SeqLength="$LIB/SeqLength.py"
 PCAmaker="$LIB/PCA_maker.py"
 
 BucketsFolder="Buckets"
-ReferencesFolder="Reference_seqs" # /Path/To/Reference_seqs
+ReferencesFolder="/media/coppini/SDATA2/Bioinfo/MAGs/Reference_seqs"
 
 TrimFiles="True"
 adapter="AGATCGGAAGAGC"
@@ -201,7 +201,7 @@ do
 				exit
 			fi
 		;;
-		--output|--Output|--OUTPUT|-output|-Output|-OUTPUT|-O|-o|-Out|-OUT|-out|--out|--Out|--OUT|--o|--O)
+		--output|--Output|--OUTPUT|-output|-Output|-OUTPUT|-O|-o|-Out|-OUT|-out|--out|--Out|--OUT|--o|--O|--address|--Address|--ADDRESS)
 			if [[ -d "${2}" ]]
 			then
 				touch ${2}
@@ -211,7 +211,7 @@ do
 			address=$(cd "$(dirname "${2}")" && pwd)/$(basename "${2}")
 			shift
 		;;
-		--output=*|--Output=*|--OUTPUT=*|-output=*|-Output=*|-OUTPUT=*|-O=*|-o=*|-Out=*|-OUT=*|-out=*|--out=*|--Out=*|--OUT=*|--o=*|--O=*)
+		--output=*|--Output=*|--OUTPUT=*|-output=*|-Output=*|-OUTPUT=*|-O=*|-o=*|-Out=*|-OUT=*|-out=*|--out=*|--Out=*|--OUT=*|--o=*|--O=*|--address=*|--Address=*|--ADDRESS=*)
 			if [[ -d "${1#*=}" ]]
 			then
 				touch ${1#*=}
@@ -626,11 +626,12 @@ do
 		--OnlyMakeBuckets)
 			StopAfterMakingBuckets="Y"
 		;;
-		--AlwaysKeepBuckets)
+		--AlwaysKeepBuckets|--KeepBuckets|--AKB)
 			AlwaysKeepBuckets="Y"
 		;;
 		*)
 			echo "Couldn't recognize command '${1}'. Ignoring it."
+			sleep 1
 		;;
 	esac
 	shift
@@ -1299,10 +1300,10 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				then
 					Ref="$ReferencesFolder/$Ref"
 				else
-					if [[ -s $ReferencesFolder/nr97_green.cur.udb ]]
+					if [[ -s $ReferencesFolder/nr97_Greengenes.udb ]]
 					then
 						echo "Using a clustered Green Genes database (clustered to 97% identity) to search for OTUs."
-						Ref=nr97_green.cur.udb
+						Ref=nr97_Greengenes.udb
 					else
 						echo "Couldn't find reference $Ref in References Folder $ReferencesFolder."
 					fi
@@ -1351,6 +1352,7 @@ PreLogGen () # Generates Log.txt in Output/${Out} folder, with the results from 
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "7" ]]; then echo "******Skipping generation of pre-log"; else
 	echo "## Calculating statistics..."
 	hits=`grep ">" $address/OUTPUT/${Out}/hits.fasta | wc -l`
+	## cp $address/OUTPUT/${Out}/hits.fasta $address/OUTPUT/${Out}/1st_filter_hits.fasta
 	if [[ -s $address/${BucketsFolder}/reads.nmb ]]
 	then
 		reads=`cat $address/${BucketsFolder}/reads.nmb`
@@ -1375,7 +1377,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "7" ]]; then echo "******Skipp
 	Buckets:	$buckets
 	Hits:	$hits
 	Portion in ppm:	$ppm1
-	Percentage of hits from total number of reads:	$(echo "$ppm1 / 10000" | bc -l)%
+	Percentage of hits from total number of reads:	$(echo "scale=4; $ppm1 / 10000" | bc -l | awk '{print $0 * 1.000000}')%
 
 	Threads:	${threads}
 " > $address/${BucketsFolder}/Log.txt
@@ -2166,17 +2168,17 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "13" ]]; then echo "******Skip
 		date -u +%s > $address/OUTPUT/${Out}/datestart16sfilter2.tmp
 		if [[ ! -s $ReferencesFolder/$SubRef ]]
 		then
-				if [[ -s $ReferencesFolder/nr100_green.cur.udb ]]
+				if [[ -s $ReferencesFolder/nr100_Greengenes.udb ]]
 				then
 					echo "Using the full Green Genes database (clustered to 100% identity) to search for OTUs."
-					SubRef=nr100_green.cur.udb
+					SubRef=nr100_Greengenes.udb
 				else
 					echo "Couldn't find subreference $SubRef in References Folder $ReferencesFolder to search for OTUs."
 				fi
 		fi
 		if [[ -s $address/OUTPUT/${Out}/16S.nonchimera ]]
 		then
-			echo "Starting second filter at ${rDNA16SID2} identity, evalue of ${rDNAevalue2}. Using maxaccepts ${maxaccepts2} and maxrejects ${maxrejects2}"
+			echo "Starting second filter (searching for homology to $SubRef database) at ${rDNA16SID2} identity, evalue of ${rDNAevalue2}. Using maxaccepts ${maxaccepts2} and maxrejects ${maxrejects2}"
 			${usearch} -usearch_global $address/OUTPUT/${Out}/16S.nonchimera -db $ReferencesFolder/$SubRef -sizein -sizeout -strand plus -id ${rDNA16SID2} -evalue ${rDNAevalue2} --maxaccepts ${maxaccepts2} --maxrejects ${maxrejects2} -maxhits 1 -matched $address/OUTPUT/${Out}/16S.m7 -notmatched $address/OUTPUT/${Out}/16S.nm7 -otutabout $address/OUTPUT/${Out}/otu_table.seqidnum -blast6out $address/OUTPUT/${Out}/otu_blast6out.tsv -query_cov 0.${rDNA16Sqcov} -threads ${threads} -quiet -uc $address/OUTPUT/${Out}/map_nobarcode.uc > $address/OUTPUT/${Out}/usearchlog.txt  
 			mv $address/OUTPUT/${Out}/otu_blast6out.tsv $address/OUTPUT/${Out}/otu_b6out.tsv
 		fi
@@ -2206,7 +2208,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "13" ]]; then echo "******Skip
 		counter="1"
 		totalmatched=`cat $address/OUTPUT/${Out}/16S.table | wc -l`
 		while read B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12 B13; do
-			name=`grep ^">$B3 " $ReferencesFolder/16S/Green.list  | sed 's/.*.k__/k__/g'`
+			name=`grep ^">$B3 " $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.headers.txt  | sed 's/.*.k__/k__/g'`
 			new=">16S_$counter|ID_$B4|AligLength_$B5|eval_$B12|Bitscore_$B13|Size_${B2%;}|$name"
 			echo -en "\r"; echo -en "Renaming matched sequences ($counter/$totalmatched)   "
 			sed -i "s@^>16S_$B1;size=.*@$new@" $address/OUTPUT/${Out}/16S.m7
@@ -2235,7 +2237,7 @@ Finished renaming matched sequences"
 		if [[ -s $address/OUTPUT/${Out}/contigs/16S_contig.table ]]
 		then
 			while read B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12 B12; do
-				name=`grep ^">$B2 " $ReferencesFolder/16S/Green.list  | sed 's/.*.k__/k__/g'`
+				name=`grep ^">$B2 " $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.headers.txt  | sed 's/.*.k__/k__/g'`
 				echo -en "\r"; echo -en "Renaming matched contig sequences ($counter/$totalmatched)   "
 				sed -i "s@^>$B1.*@&;$name;ID_$B3;AligLength_$B5;eval_$B12;Bitscore_$B13@" $address/OUTPUT/${Out}/contigs/16S_contig.m7
 				((counter+=1))
@@ -2264,8 +2266,18 @@ Finished renaming matched sequences"
 	mv $address/OUTPUT/${Out}/contigs/16S_contig.m8 $address/OUTPUT/${Out}/contigs/16S_contigs.fasta
 #	grep ">" $address/OUTPUT/${Out}/contigs/16S_contigs.fasta | wc -l
 	mv $address/OUTPUT/${Out}/contigs/16S_contig.nm7 $address/OUTPUT/${Out}/contigs/Discarded_Contig_Sequences_possible16S.fasta
-	cat $address/OUTPUT/${Out}/map_nobarcode.uc | awk -F "\t" -v Out=${Out} '{if ($9 ~ /;$/) print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "barcodelabel=" Out ";\t" $10 ; else print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 ";barcodelabel=" Out "\t" $10}' > $address/OUTPUT/${Out}/map.uc
-	cat $address/OUTPUT/${Out}/contigs/map_nobarcode_contig.uc | awk -F "\t" -v Out=${Out} '{if ($9 ~ /;$/) print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "barcodelabel=" Out ";\t" $10 ; else print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 ";barcodelabel=" Out "\t" $10}' > $address/OUTPUT/${Out}/contigs/map_contig.uc
+	cat $address/OUTPUT/${Out}/map_nobarcode.uc | awk -F "\t" -v Out=${Out} '{if ($9 ~ /;$/) print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "barcodelabel=" Out ";\t" $10 ; else print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 ";barcodelabel=" Out ";\t" $10}' > $address/OUTPUT/${Out}/map.uc
+	if [[ "$(cat $address/OUTPUT/${Out}/otu_table.seqidnum | wc -l)" -le 2 ]]
+	then
+		echo "#OTU ID	${Out}" > $address/OUTPUT/${Out}/otu_table.seqidnum
+		cut -f 9,10 $address/OUTPUT/${Out}/map.uc | sed 's#.*;size=##' | sed 's#;barcodelabel=.*;\t#\t>#' | grep -v "\*" | sed 's# .*##' | awk '{seen[$2]+=$1}END{ for (id in seen) print id "\t" seen[id] }'  >> $address/OUTPUT/${Out}/otu_table.seqidnum
+	fi
+	cat $address/OUTPUT/${Out}/contigs/map_nobarcode_contig.uc | awk -F "\t" -v Out=${Out} '{if ($9 ~ /;$/) print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "barcodelabel=" Out ";\t" $10 ; else print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 ";barcodelabel=" Out ";\t" $10}' > $address/OUTPUT/${Out}/contigs/map_contig.uc
+	if [[ "$(cat $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum | wc -l)" -le 2 ]]
+	then
+		echo "#OTU ID	${Out}" > $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum
+		cut -f 9,10 $address/OUTPUT/${Out}/contigs/map_contig.uc | sed 's#.*;size=##' | sed 's#;barcodelabel=.*;\t#\t>#' | grep -v "\*" | sed 's# .*##' | awk '{seen[$2]+=$1}END{ for (id in seen) print id "\t" seen[id] }'  >> $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum
+	fi
 	echo "$(date -u +%s) - $(cat $address/OUTPUT/${Out}/datestartrenaming.tmp)" | bc -l > $address/OUTPUT/${Out}/renamingtime.nmb
 	rm -rf $address/OUTPUT/${Out}/16S.table $address/OUTPUT/${Out}/16S.m7 $address/OUTPUT/${Out}/16S.m8 $address/OUTPUT/${Out}/16S.nm8 $address/OUTPUT/${Out}/16S.nm7 $address/OUTPUT/${Out}/16S.tsv $address/OUTPUT/${Out}/map_nobarcode.uc $address/OUTPUT/${Out}/contigs/contigs_over_${rDNAminCntgLength}.fa $address/OUTPUT/${Out}/contigs/contigs_under_${rDNAminCntgLength}.fa $address/OUTPUT/${Out}/contigs/16S_contig.table $address/OUTPUT/${Out}/contigs/16S_contig.m7 $address/OUTPUT/${Out}/contigs/16S_contig.m8 $address/OUTPUT/${Out}/contigs/16S_contig.nm8 $address/OUTPUT/${Out}/contigs/16S_contig.nm7 $address/OUTPUT/${Out}/contigs/16S_contig.tsv $address/OUTPUT/${Out}/contigs/map_nobarcode_contig.uc $address/OUTPUT/${Out}/datestartrenaming.tmp 
 	echo "14" > $address/CR.step; CFLR="N"
@@ -2278,13 +2290,13 @@ PCA_Maker ()
 	echo -n "Starting PCA analysis..."
 	if [[ "$(grep -m2 -c '>' $address/OUTPUT/${Out}/16S.fasta)" -gt 1 ]]
 	then
-		python ${PCAmaker} $address/OUTPUT/${Out}/16S.fasta $address/OUTPUT/${Out}/PCoA.png > $address/OUTPUT/${Out}/PCoAlog.txt
+		python ${PCAmaker} $address/OUTPUT/${Out}/16S.fasta $address/OUTPUT/${Out}/PCA.png > $address/OUTPUT/${Out}/PCAlog.txt
 	fi
 	if [[ "$(grep -m2 -c '>' $address/OUTPUT/${Out}/contigs/16S_contigs.fasta)" -gt 1 ]]
 	then
-		python ${PCAmaker} $address/OUTPUT/${Out}/contigs/16S_contigs.fasta $address/OUTPUT/${Out}/contigs/PCoA_contig.png > $address/OUTPUT/${Out}/PCoAlog.txt
+		python ${PCAmaker} $address/OUTPUT/${Out}/contigs/16S_contigs.fasta $address/OUTPUT/${Out}/contigs/PCA_contig.png > $address/OUTPUT/${Out}/PCAlog.txt
 	fi
-	rm -rf $address/OUTPUT/${Out}/16S.nonchimera $address/OUTPUT/${Out}/PCoAlog.txt
+	rm -rf $address/OUTPUT/${Out}/16S.nonchimera $address/OUTPUT/${Out}/PCAlog.txt
 	echo "    Done!"
 	echo "15" > $address/CR.step; CFLR="N"
 fi
@@ -2298,16 +2310,16 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "15" ]]; then echo "******Skip
 	sed -i '1,1d' $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum
 	sort -S 50% --parallel=${threads} -k1,1 $address/OUTPUT/${Out}/otu_table.seqidnum > $address/OUTPUT/${Out}/otu_table.ord
 	sort -S 50% --parallel=${threads} -k1,1 $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum > $address/OUTPUT/${Out}/contigs/otu_table_contig.ord
-	if [[ -s $ReferencesFolder/16S/ID_2_OTU.txt ]]
+	if [[ -s $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.ID_2_OTU.tsv ]]
 	then
-		join -1 1 -2 1 -o 1.2,2.2 $ReferencesFolder/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/otu_table.ord | sed 's/ /\t/g' | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.otus
+		join -1 1 -2 1 -o 1.2,2.2 $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.ID_2_OTU.tsv $address/OUTPUT/${Out}/otu_table.ord | sed 's/ /\t/g' | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/otu_table.otus
 		awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/otu_table.otus | sort -S 50% --parallel=${threads} -V | awk -v cutoff=${rDNA16Scutoff} '{if ($2>cutoff) print}' > $address/OUTPUT/${Out}/otu_table.sum
 		cat $address/OUTPUT/${Out}/otu_table.header $address/OUTPUT/${Out}/otu_table.sum > $address/OUTPUT/${Out}/otu_table.tsv
 		sq=`grep -c ">" $address/OUTPUT/${Out}/16S.fasta`
 		echo "$sq reads matched to $(cat $address/OUTPUT/${Out}/otu_table.sum | wc -l) OTUs"
 		if [[ -s $address/OUTPUT/${Out}/contigs/otu_table_contig.ord ]]
 		then
-			join -1 1 -2 1 -o 1.2,2.2 $ReferencesFolder/16S/ID_2_OTU.txt $address/OUTPUT/${Out}/contigs/otu_table_contig.ord | sed 's/ /\t/g' | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/contigs/otu_table_contig.otus
+			join -1 1 -2 1 -o 1.2,2.2 $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.ID_2_OTU.tsv $address/OUTPUT/${Out}/contigs/otu_table_contig.ord | sed 's/ /\t/g' | sort -S 50% --parallel=${threads} -V > $address/OUTPUT/${Out}/contigs/otu_table_contig.otus
 			awk '{seen[$1]+=$2}END{ for (id in seen) print id "\t" seen[id] }' $address/OUTPUT/${Out}/contigs/otu_table_contig.otus | sort -S 50% --parallel=${threads} -V | awk -v cutoff=${rDNA16Scutoff} '{if ($2>(cutoff / 10)) print}' > $address/OUTPUT/${Out}/contigs/otu_table_contig.sum
 			cntg=`grep -c ">" $address/OUTPUT/${Out}/contigs/16S_contigs.fasta`
 			echo "$cntg contigs matched to $(cat $address/OUTPUT/${Out}/contigs/otu_table_contig.sum | wc -l) OTUs"
@@ -2342,13 +2354,13 @@ rDNA_TaxonFinding ()
 {
 if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skipping Taxon Analysis"; else
 	rm -rf $address/OUTPUT/${Out}/taxons $address/OUTPUT/${Out}/contigs/taxons
-	if [[ -s $ReferencesFolder/16S/ID_2_Taxon.txt ]]
+	if [[ -s $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.ID_2_Taxon.tsv ]]
 	then
 		if [[ -s $address/OUTPUT/${Out}/otu_table.tsv ]]
 		then
 			mkdir $address/OUTPUT/${Out}/taxons
 			while read otunum counts; do
-				echo "$counts	$(grep -m 1 -w "${otunum}" $ReferencesFolder/16S/ID_2_Taxon.txt)" >> $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
+				echo "$counts	$(grep -m 1 -w "${otunum#>}" $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.ID_2_Taxon.tsv)" >> $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
 			done < $address/OUTPUT/${Out}/otu_table.tsv
 			sed -i -e 1,1d $address/OUTPUT/${Out}/taxons/otu_table_with_associated_taxons.pre
 		fi
@@ -2356,7 +2368,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skip
 		then
 			mkdir $address/OUTPUT/${Out}/contigs/taxons
 			while read otunum counts; do
-				echo "$counts	$(grep -m 1 -w "${otunum}" $ReferencesFolder/16S/ID_2_Taxon.txt)" >> $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre
+				echo "$counts	$(grep -m 1 -w "${otunum#>}" $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.ID_2_Taxon.tsv)" >> $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre
 			done < $address/OUTPUT/${Out}/contigs/otu_table_contig.tsv
 			sed -i -e 1,1d $address/OUTPUT/${Out}/contigs/taxons/otu_table_contig_with_associated_taxons.pre
 		fi
@@ -2373,7 +2385,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skip
 		if [[ -s $address/OUTPUT/${Out}/otu_table.seqidnum ]]
 		then
 			while read seqidnum counts; do
-				echo "$counts	$(grep -w -m 1 ">${seqidnum}" $ReferencesFolder/16S/Green.list)" >> $address/OUTPUT/${Out}/taxons/headers_counts.pre
+				echo "$counts	$(grep -w -m 1 ">${seqidnum#>}" $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.headers.txt)" >> $address/OUTPUT/${Out}/taxons/headers_counts.pre
 			done < $address/OUTPUT/${Out}/otu_table.seqidnum
 			if [[ -s $address/OUTPUT/${Out}/taxons/headers_counts.pre ]]
 			then
@@ -2383,7 +2395,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skip
 		if [[ -s $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum ]]
 		then
 			while read seqidnum counts; do
-				echo "$counts	$(grep -w -m 1 ">${seqidnum}" $ReferencesFolder/16S/Green.list)" >> $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.pre
+				echo "$counts	$(grep -w -m 1 ">${seqidnum#>}" $ReferencesFolder/Taxonomy_Index/${SubRef%.*}.headers.txt)" >> $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.pre
 			done < $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum
 			if [[ -s $address/OUTPUT/${Out}/contigs/taxons/headers_counts_contig.pre ]]
 			then
@@ -2391,7 +2403,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "16" ]]; then echo "******Skip
 			fi
 		fi
 	else
-		echo "Couldn't find the file with taxons on '$ReferencesFolder/16S/ID_2_Taxon.txt'"
+		echo "Couldn't find the file with taxons on '$ReferencesFolder/Taxonomy_Index/${SubRef%.*}.ID_2_Taxon.tsv'"
 	fi
 	rm -rf $address/OUTPUT/${Out}/taxons/*.pre $address/OUTPUT/${Out}/taxons/*.header ; rm -rf $address/OUTPUT/${Out}/contigs/taxons/*.pre
 	rm -rf $address/OUTPUT/${Out}/otu_table.seqidnum $address/OUTPUT/${Out}/contigs/otu_table_contig.seqidnum
@@ -2677,7 +2689,7 @@ Time for second SPADES run: $(cat $address/OUTPUT/${Out}/spades2time.nmb | awk '
 	fi
 	if [[ $TimeLoss == "Y" ]]
 	then
-		d3="at least $(echo "$($date -u +%s) - $d1" |bc -l)"
+		d3="at least $(echo "$(date -u +%s) - $d1" |bc -l)"
 	else
 		d3=$(echo "$(date -u +%s) - $d1" |bc -l)
 	fi
@@ -2871,7 +2883,7 @@ ErrorRevision () # Finds outputs for which SPADES couldn't find contigs and move
 		then
 			touch $address/OUTPUT/$folder/contigs.fasta.gz
 	        else
-			if [[ -s $address/OUTPUT/$folder/16S.fasta && -s $address/OUTPUT/$folder/hits.fasta.gz && -s $address/OUTPUT/$folder/otu_b6out.tsv && -s $address/OUTPUT/$folder/otu_table.tsv && -s $address/OUTPUT/$folder/PCoA.png && -s $address/OUTPUT/$folder/Log.txt && -d $address/OUTPUT/$folder/taxons ]]
+			if [[ -s $address/OUTPUT/$folder/16S.fasta && -s $address/OUTPUT/$folder/hits.fasta.gz && -s $address/OUTPUT/$folder/otu_b6out.tsv && -s $address/OUTPUT/$folder/otu_table.tsv && -s $address/OUTPUT/$folder/PCA.png && -s $address/OUTPUT/$folder/Log.txt && -d $address/OUTPUT/$folder/taxons ]]
 			then
 				touch $address/OUTPUT/${Out}/Log.txt
 			else
@@ -2885,7 +2897,7 @@ ErrorRevision () # Finds outputs for which SPADES couldn't find contigs and move
 						then
 							touch $address/OUTPUT/$folder/contigs
 					        else
-							rm -rf $address/OUTPUT/$folder/contigs
+							# rm -rf $address/OUTPUT/$folder/contigs
 							subrefhits=0
 							subrefhits=$(cat $address/OUTPUT/$folder/blast_hits/*.tsv | wc -l)
 							if [[ ${subrefhits} -gt 0 ]]
@@ -3014,10 +3026,10 @@ Threads = ${threads}
 			16S|16s|16)
 				if [[ ! -s $ReferencesFolder/$Ref ]]
 				then
-					if [[ ! -s $Ref && -s $ReferencesFolder/nr97_green.cur.udb ]]
+					if [[ ! -s $Ref && -s $ReferencesFolder/nr97_Greengenes.udb ]]
 					then
 						echo "Using a clustered Green Genes database (clustered to 97% identity) to search for OTUs."
-						Ref=nr97_green.cur.udb
+						Ref=nr97_Greengenes.udb
 					else
 						echo "Couldn't find reference $Ref in References Folder $ReferencesFolder."
 					fi
@@ -3025,15 +3037,15 @@ Threads = ${threads}
 
 				if [[ ! -s $ReferencesFolder/$SubRef ]]
 				then
-						if [[ ! -s $SubRef && -s $ReferencesFolder/nr100_green.cur.udb ]]
+						if [[ ! -s $SubRef && -s $ReferencesFolder/nr100_Greengenes.udb ]]
 						then
 							echo "Using the full Green Genes database (clustered to 100% identity) to search for OTUs."
-							SubRef=nr100_green.cur.udb
+							SubRef=nr100_Greengenes.udb
 						else
 							echo "Couldn't find subreference $SubRef in References Folder $ReferencesFolder to search for OTUs."
 						fi
 				fi
-				echo -e "\n# Starting work in file $R1 with $Ref as reference for the first filter ${SubRef} as reference for the second filter, at $(date '+%X %e/%m/%Y'), going to ${Out}\n"
+				echo -e "\n# Starting work in file $R1 with $Ref as reference for the first filter and ${SubRef} as reference for the second filter, at $(date '+%X %e/%m/%Y'), going to ${Out}\n"
  				CommandLine="$0 --config=$ConfigFile --output=$address --threads=$threads --references $ReferencesFolder --maxaccepts2=$maxaccepts2 --maxrejects1=$maxrejects1 --maxrejects2=$maxrejects2 --16S_id1=$rDNA16SID1 --16S_id2=$rDNA16SID2 --16S_evalue1=$rDNAevalue1 --16S_evalue2=$rDNAevalue2 --16S_qcov=$rDNA16Sqcov --16S_cutoff=$rDNA16Scutoff --16S_min_cntg_length=$rDNAminCntgLength"
 			;;
 		esac
