@@ -3,23 +3,23 @@
 address=$(cd "$(dirname "")" && pwd)/$(basename "")
 ConfigFile=$(cd "$(dirname "config.file")" && pwd)/$(basename "config.file")
 
-spades="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/spades/SPAdes-3.11.0/bin/spades.py"
-quast="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/quast/metaquast.py"
-usearch="/bin/usearch"
-fastqc="/usr/local/bin/fastqc"
-cdhit="/usr/lib/cd-hit/cd-hit"
-cutadapt="/usr/local/bin/cutadapt"
-pyfasta="/usr/local/bin/pyfasta"
-pigz="/usr/local/bin/pigz"
+spades="/Path/To/SPADES/spades.py" ## spades="spades.py"
+quast="/Path/To/QUAST/metaquast.py" ## "quast=metaquast.py"
+usearch="/Path/To/usearch" ## usearch="/usr/bin/usearch"
+fastqc="Path/To/fastqc" ## fastqc="fastqc"
+cdhit="Path/To/cdhit" ## cdhit="cd-hit"
+cutadapt="Path/To/cutadapt" ## cutadapt="cutadapt"
+pyfasta="Path/To/pyfasta" ## pyfasta="pyfasta"
+pigz="/Path/To/pigz" ## pigz="pigz"
 
-LIB="/media/coppini/SDATA2/Bioinfo/MAGs/Lib/"
-orffinder="$LIB/bb.orffinder.pl"
+LIB="/Path/To/Lib/" ## LIB="Lib"
+orffinder="Path/To/bb.orffinder.pl" ## orffinder="$LIB/bb.orffinder.pl"
 extpy="$LIB/ext.py"
 SeqLength="$LIB/SeqLength.py"
 PCAmaker="$LIB/PCA_maker.py"
 
 BucketsFolder="Buckets"
-ReferencesFolder="/media/coppini/SDATA2/Bioinfo/MAGs/Reference_seqs"
+ReferencesFolder="Reference_seqs" ## ReferencesFolder="Path/To/ReferencesFolder"
 
 TrimFiles="True"
 adapter="AGATCGGAAGAGC"
