@@ -124,7 +124,7 @@ Alternatively, when using a long list of sets of sample/reference in contigs.fil
 # Contact and License
 
 All bugs should be reported to: celio.diasjunior@gmail.com or guilherme.coppini@gmail.com. 
-Please cite us: "Santos-Júnior, CD et al. BEAF: An automated pipeline to referenced genome and protein or gene families binning and assembly of next generation sequencing data. (Under publishing)".
+Please cite us: "Santos-Júnior, C. D., Henrique-Silva, F. & Coppini, G. B. BEAF: An automated pipeline to referenced genome and protein or gene families binning and assembly of next generation sequencing data. (Under publishing)".
 Rights between any third party software are not in claim, they continue under rights of original distribution.
 
 ```
