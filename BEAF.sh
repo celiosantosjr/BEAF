@@ -3296,187 +3296,6 @@ Threads = ${threads}
 	fi
 }
 
-SoftBEAF () # The pipeline BEAF will run when using soft version.
-{
-	echo "##### Running Soft BEAF, a faster but simpler version of the BEAF software #####"
-	d0=`date -u "+%s"`
-	make_kp
-	Check
-	SoftTimeHeader
-	while read T1 T2 R1 R2 Ref SubRef Out Keep; do
-		d1=`date -u "+%s"`
-		if [[ -d $ReferencesFolder/$SubRef ]]
-		then
-			echo -e "\n# Starting work in file $R1 with $Ref as reference and $SubRef as subreference, going to ${Out}\n"
-		else
-			echo -e "\n# Starting work in file $R1 with $Ref as reference, going to ${Out}\n"
-		fi
-		BucketsFolder="Bucket_$(basename $R1 | sed 's/.gz//' | sed 's/\..*//')"
-		if [[ -d $address/${BucketsFolder} ]]
-		then
-			ls $address/${BucketsFolder}/*.bk > $address/${BucketsFolder}/buckets_list.txt
-			if [[ -s $address/${BucketsFolder}/buckets_list.txt ]]
-			then
-				echo "# Using previous buckets"
-			else
-				CopyFile
-				SoftMergeRename
-			fi
-		else
-			mkdir $address/${BucketsFolder}
-			CopyFile
-			SoftMergeRename
-		fi
-		if [[ -d $address/OUTPUT/${Out} ]]
-		then
-			echo "Folder ${Out} already exists, continuing work..."
-		else
-			if [[ -d $address/OUTPUT ]]
-			then
-				touch $address/OUTPUT
-			else
-				mkdir $address/OUTPUT
-			fi
-			mkdir $address/OUTPUT/${Out}
-			echo "Folder ${Out} created in OUTPUT"
-		fi
-		BucketEngine
-		buckets=`ls $address/${BucketsFolder}/*.bk | wc -l`
-		Filter1
-		PreLogGen
-		case $T1 in
-			G|g)
-				if [[ -s $address/OUTPUT/${Out}/hits.fasta ]]
-				then
-					G_SPADES2
-					SoftGA
-				else
-					echo "# The proposed analysis could not continue due to its lacking of homology between provided sequences and reference genome."
-					rm -rf $address/OUTPUT/${Out}/hits.fasta
-					echo "12" > $address/CR.step
-				fi
-			;;
-			P|p|N|n)
-				if [[ -s $address/OUTPUT/${Out}/hits.fasta ]]
-				then
-					echo "# Submitting to Blast per subreference family..."
-					BlastDBGen
-					Filter2
-					Extraction
-					if [[ -s $address/${BucketsFolder}/reads.nmb ]]
-					then
-						reads=`cat $address/${BucketsFolder}/reads.nmb`
-					else
-						if [[ -s $address/OUTPUT/${Out}/reads.nmb ]]
-						then
-							reads=`cat $address/OUTPUT/${Out}/reads.nmb`
-						fi
-					fi					
-					if [[ -s $address/OUTPUT/${Out}/list ]]
-					then
-						touch $address/OUTPUT/${Out}/list
-					else
-						ls $address/OUTPUT/${Out}/*.ft | sed "s@${address}/OUTPUT/${Out}/@@" > $address/OUTPUT/${Out}/list
-					fi
-					for File in `cat $address/OUTPUT/${Out}/list`; do
-						echo "# Working on file $File for ${Out}..."
-						BTime="0"
-						STime="0"
-						TTime="0"
-						d4=`date -u "+%s"`
-						ppm2="0"
-						cntg="0"
-						sq="0"
-						Warnings="[OK]"
-						if [ $CFLR == "Y" ]
-						then
-							if [ -s $address/OUTPUT/${Out}/ppm2.nmb ]
-							then
-								ppm2=`cat $address/OUTPUT/${Out}/ppm2.nmb`
-							fi
-							if [ -s $address/OUTPUT/${Out}/cntg.nmb ]
-							then
-								cntg=`cat $address/OUTPUT/${Out}/cntg.nmb`
-							fi
-							if [ -s $address/OUTPUT/${Out}/sq.nmb ]
-							then
-								sq=`cat $address/OUTPUT/${Out}/sq.nmb`
-							fi
-						else
-							rm -rf $address/OUTPUT/${Out}/ppm2.nmb $address/OUTPUT/${Out}/cntg.nmb $address/OUTPUT/${Out}/sq.nmb $address/OUTPUT/${Out}/ORFs.nmb
-						fi
-						if [ -s $address/OUTPUT/${Out}/$File ]
-						then
-							PN_Prepare_SPADES
-							PN_SPADES2
-							PNA
-						else
-							echo "# $File in ${Out} did not reach the minimum criteria to be considered homologus"
-							Warnings="WARNING: Did not reach minimum criteria to be considered homologus"
-							rm -rf $address/OUTPUT/${Out}/$File
-						fi
-						d5=`date -u "+%s"`
-						if [ -s $address/OUTPUT/${Out}/$File.time2 ]
-						then
-							BTime=`cat $address/OUTPUT/${Out}/$File.time2`
-						fi
-						if [[ $TimeLoss == "Y" && $CFLR == "Y" ]]
-						then
-							TTime="at least $(echo $d5 - $d4 |bc -l)"
-						else
-							TTime=$(echo $d5 - $d4 |bc -l)
-						fi
-						rm -rf $address/OUTPUT/${Out}/$File.time2
-						if [[ -s $address/OUTPUT/${Out}/sq.nmb ]]
-						then
-							sq=`cat $address/OUTPUT/${Out}/sq.nmb`
-						fi
-						if [[ -s $address/OUTPUT/${Out}/ppm2.nmb ]]
-						then
-							ppm2=`cat $address/OUTPUT/${Out}/ppm2.nmb`
-						fi
-						if [[ -s $address/OUTPUT/${Out}/cntg.nmb ]]
-						then
-							cntg=`cat $address/OUTPUT/${Out}/cntg.nmb`
-						fi
-						echo "${File%.f*}|$sq|$ppm2|$cntg|$TotalSizeCntg|$AvgSizeCntg|$StdDevCntg|$MaxCntg|$(cat $address/OUTPUT/${Out}/contigfilteringtime.nmb | awk '{ sum += $1 } END { print sum }')|NA|NA|NA|NA|NA|NA|$BTime|$STime|$TTime|$Warnings" > $address/OUTPUT/${Out}/tmp1.$File
-						sed -i -e 1,1d $address/OUTPUT/${Out}/list
-					done
-					SaveDBs
-					rm -rf $address/OUTPUT/${Out}/ORFs; rm -rf $address/OUTPUT/${Out}/list; rm -rf $address/OUTPUT/${Out}/ppm2.nmb $address/OUTPUT/${Out}/cntg.nmb $address/OUTPUT/${Out}/sq.nmb
-				else
-					rm -rf $address/OUTPUT/${Out}/hits.fasta
-					echo "# The proposed analysis could not continue due to its lacking of homology between provided sequences and reference sequence."
-					ppm2="0"
-					echo "$ppm2" > $address/OUTPUT/${Out}/ppm2.nmb
-					cntg="0"
-					echo "$cntg" > $address/OUTPUT/${Out}/cntg.nmb
-					echo "21" > $address/CR.step
-				fi
-			;;
-		esac
-		CleaningTheMess
-		PrintResults
-		CFLR="N"; TimeLoss="N"
-		rm -rf $address/OUTPUT/${Out}/list; rm -rf $address/OUTPUT/${Out}/*.nmb
-	done < $address/config.kp
-	rm -rf $address/*.kp ; rm -rf $address/*.nmb 
-	rm -rf $address/par.time
-	
-	ErrorRevision
-
-	CFLR="N"
-	rm -rf $address/CR.step $address/CR.mode
-
-	d99=`date -u "+%s"`
-	dtotal=$(echo "$d99 - $d0" |bc -l)
-	echo "
-###########################################################
-BEAF1011.65 worked for $dtotal seconds, ending at $(date "+%X %e/%m/%Y").
-###########################################################
-"
-}
-
 	# ======================================================================================================================================================================================== #
 	# ========================================================================================MAIN============================================================================================ #
 	# ======================================================================================================================================================================================== #
@@ -3485,10 +3304,6 @@ Main () # Interpreting user's input of whether he'll be using soft or full versi
 {
 	address=${address%/}
 	case $1 in
-		S|s|-s|-S|Soft|soft|SOFT|-Soft|-soft|-SOFT|"SOFT")
-			echo "Soft" > $address/CR.mode
-			SoftBEAF
-		;;
 		*)
 			echo "FullVersion" > $address/CR.mode
 			BEAF
@@ -3535,12 +3350,6 @@ else
 				*)
 					CFLR="N"
 					rm -rf $address/CR.step $address/CR.mode; rm -rf $address/*.kp; rm -rf $address/*.nmb; rm -rf $address/*.tmp; rm -rf $address/${BucketsFolder}
-					# echo "BEAF will start a new run. 
-
-		# How do you want to run BEAF?
-		# -s: run Soft BEAF, a faster but simpler version of the BEAF software
-		# -b: run full version, with all utilities"
-		#			read ver
 					Main $ver
 				;;
 			esac
@@ -3556,28 +3365,12 @@ else
 						echo "1" > $address/CR.step
 						echo "BEAF will continue from last run."
 						ver=`cat CR.mode`
-		#				read ver
 						Main $ver
 					;;
 					*)
 						CFLR="N" # Do not Continue From Last Run
 						rm -rf $address/CR.step $address/CR.mode; rm -rf $address/*.kp; rm -rf $address/*.nmb; rm -rf $address/*.tmp; rm -rf $address/${BucketsFolder}
-		#				echo "BEAF will start a new run. 
-		#	
-		#	How do you want to run BEAF?
-		#	-s: run Soft BEAF, a faster but simpler version of the BEAF software
-		#	-b: run full version, with all utilities"
-		#		read ver
 						Main $ver
-					;;
-				esac
-			else
-		#		echo "How do you want to run BEAF?
-		# -s: run Soft BEAF, a faster but simpler version of the BEAF software
-		# -b: run full version, with all utilities"
-		#		read ver
-				rm -rf $address/CR.step $address/CR.mode; rm -rf $address/*.kp; rm -rf $address/*.nmb; rm -rf $address/*.tmp; rm -rf $address/${BucketsFolder}
-				Main $ver
 			fi
 		fi
 	fi
