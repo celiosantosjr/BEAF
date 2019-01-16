@@ -1337,7 +1337,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
                     *)
                         case $Ref in
                             *.fa|*.fasta|*.fas|*.faa|*.fna|*.fsa|*.FA|*.FASTA|*.FAS|*.FAA|*.FNA|*.FSA) # Tests if reference is in fasta format
-                                echo "# Recognized $Ref file as fasta format. Splitting sequences..."
+                                echo "# Recognized $Ref file as fasta format. Splitting sequences into sequences with a length of ${ProtFragLength} basepairs and coverage of ${ProtCoverage}..."
                             ;;
                             *)
                                 echo "Couldn't recognize $Ref filetype. BEAF will assume it's a fasta file and try to split the sequences and make a proper database from it."
@@ -1346,15 +1346,17 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
                         if [[ -s $ReferencesFolder/$Ref ]]
                         then
     			            ${Splitter} $ReferencesFolder/$Ref ${ProtFragLength} -o=${ProtOverlap} -c=${ProtCoverage} > $address/${BucketsFolder}/PNRef_$(basename ${Ref%.f*}).fasta
+                            echo "The database was split into a total of $(grep -c '>' $address/${BucketsFolder}/PNRef_$(basename ${Ref%.f*}).fasta) sequences."
                         elif [[ -s $Ref ]]
                         then
     			            ${Splitter} $Ref ${ProtFragLength} -o=${ProtOverlap} -c=${ProtCoverage} > $address/${BucketsFolder}/PNRef_$(basename ${Ref%.f*}).fasta
+                            echo "The database was split into a total of $(grep -c '>' $address/${BucketsFolder}/PNRef_$(basename ${Ref%.f*}).fasta) sequences."
                         else
                             echo "Couldn't find Reference File $Ref	"
                         fi
                         case $SearchMode in
                             F|f|Full|full|FULL|U|u|Usearch|usearch|USEARCH)
-                                ${usearch} -makeudb_usearch  -output $address/${BucketsFolder}/$(basename ${Ref%.f*}).udb -quiet > $address/${BucketsFolder}/makeudblog.txt
+                                ${usearch} -makeudb_usearch $address/${BucketsFolder}/PNRef_$(basename ${Ref%.f*}).fasta -output $address/${BucketsFolder}/$(basename ${Ref%.f*}).udb -quiet > $address/${BucketsFolder}/makeudblog.txt
                                 dbinuse="$address/${BucketsFolder}/$(basename ${Ref%.f*}).udb"
                                 rm -rf $address/${BucketsFolder}/makeudblog.txt
                             ;;
