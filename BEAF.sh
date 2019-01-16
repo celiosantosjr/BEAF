@@ -1441,9 +1441,9 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				else
                     case $SearchMode in
                         F|f|Full|full|FULL|U|u|Usearch|usearch|USEARCH)
-                            if [[ -s $ReferencesFolder/nr97Greengenes.udb ]]
+                            if [[ -s $ReferencesFolder/nr_97_Greengenes.udb ]]
                             then
-                                Ref=$ReferencesFolder/nr97Greengenes.udb
+                                Ref=$ReferencesFolder/nr_97_Greengenes.udb
                             elif [[ -s $ReferencesFolder/nr97_Greengenes.bdb.nhr && -s $ReferencesFolder/nr97_Greengenes.bdb.nin && -s $ReferencesFolder/nr97_Greengenes.bdb.nsq ]]
                             then
                                 echo "Couldn't find a usearch database reference named $Ref in References Folder $ReferencesFolder, nor the default usearch database for Taxonomy ($ReferencesFolder/nr97_Greengenes.udb). BEAF was capable, however, of finding the default blast database ($ReferencesFolder/nr97_Greengenes.bdb). If you want to use that database, consider using the Quick Search Mode (with option --quick)."
@@ -3121,7 +3121,7 @@ Threads = ${threads}
 				CommandLine="$0 --config=$ConfigFile --output=$address --threads=$threads --references $ReferencesFolder --maxaccepts2=$maxaccepts2 --maxrejects1=$maxrejects1 --maxrejects2=$maxrejects2 --prot_id1=$ProtID1 --prot_id2=$ProtID2 --prot_evalue1=$PROTevalue1 --prot_evalue2=$PROTevalue2 --prot_qcov1=$PROTqcovHits --prot_qcov2=$PROTqcovORFs"
 			;;
 			16S|16s|16|T|t|Taxonomy|taxonomy)
-				if [[ ! -s $ReferencesFolder/$Ref && -s $Ref ]]
+				if [[ ! -s $ReferencesFolder/$Ref && ! -s $Ref ]]
 				then
                     case $SearchMode in
                         F|f|Full|full|FULL|U|u|Usearch|usearch|USEARCH)
