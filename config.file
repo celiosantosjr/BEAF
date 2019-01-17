@@ -1,3 +1,4 @@
-G	R	Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	Alistipes_putredinis_DSM_17216.fna	NA	Test_genome1
-N	I	Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	transposon.fasta	transposon	Test_nt1
-P	I	Test_sample/Alistipes_putredinis_DSM_17216.fna.fastq.gz	NA	bdg.fa	BDG	Test_prot1
+G	R	{Some_metagenome_for_testing_R1.fq.gz}	{Some_metagenome_for_testing_R2.fq.gz}	clostridium/Clostridium_asparagiforme_DSM_15981.fna	NA	Test_Genome
+G	R	{Some_metagenome_for_testing_R1.fq.gz}	{Some_metagenome_for_testing_R2.fq.gz}	NA  clostridium	Test_Genome_subs
+N	I	{Some_metagenome_for_testing.fq.gz}	NA	BDG/bdg-summary.fa	BDG/BDG-summary	Test_Protein_BDG
+P	I	{Some_metagenome_for_testing.fq.gz}	NA	Transposon/transposon.fa	Transposon/sub_transposon	Test_Nucleotide_transposon
