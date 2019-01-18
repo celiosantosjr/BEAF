@@ -26,7 +26,7 @@ Splitter="$LIB/Splitter.py"
 PCAmaker="$LIB/PCA_maker.py"
 
 BucketsFolder="Buckets"
-ReferencesFolder="/media/coppini/SDATA2/Bioinfo/MAGs/Reference_seqs"
+ReferencesFolder="$address/Reference_seqs"
 
 SearchMode="Full"
 TrimFiles="True"
@@ -219,7 +219,7 @@ do
 			show_config_help
 			exit
 		;;
-		--DontTrim|donttrim|Donttrim|dontTrim|DONTTRIM|DONTtrim|dontTRIM|noTrim|NoTrim|NOtrim|noTRIM|Notrim|NOTRIM)
+		--DontTrim|donttrim|Donttrim|dontTrim|DONTTRIM|DONTtrim|dontTRIM|noTrim|NoTrim|NOtrim|noTRIM|Notrim|NOTRIM|--no-trim|--NO-TRIM|--No-Trim|--No-trim)
 			TrimFiles="False"
 		;;
 		--config|--Config|--CONFIG|-config|-Config|--CONFIG)
@@ -1108,10 +1108,26 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 			then
 				GenID=$GenID1
 				GENevalue=$GENevalue1
-                SubRefNumberOfGenomes=$(cat $ReferencesFolder/$SubRef/SubRef_fasta.list | wc -l)
+                if [[ ! -s $Ref ]]
+                then
+                    ls $ReferencesFolder/$SubRef | grep -v "Pooled_SubRefs_.*Genomes_cov.*.fasta$" | grep -vw "Pooled_SubRefs_.*Genomes.fasta" | grep -v "SubRef_split_.*_cov.*.fasta" | grep -Ei "(.fasta|.fa|.faa|.fas|.fna|.fsa|.ffn|.frn|.mpfa)$" | sed "s#$ReferencesFolder/$SubRef/##" >> $ReferencesFolder/$SubRef/SubRef_fasta.list
+                    SubRefNumberOfGenomes=$(cat $ReferencesFolder/$SubRef/SubRef_fasta.list | wc -l)
+                fi
                 if [[ "$GenomeCoverage1" == 0 ]]
                 then
-                    totalbasepairs=$(grep -v ">" $ReferencesFolder/$SubRef/Pooled_SubRefs_${SubRefNumberOfGenomes}Genomes.fasta | wc -c)
+                    if [[ ! -s $Ref && ! -s $ReferencesFolder/$SubRef/Pooled_SubRefs_${SubRefNumberOfGenomes}Genomes.fasta ]]
+                    then
+                        for sub in `cat $ReferencesFolder/$SubRef/SubRef_fasta.list`; do
+                            cat $ReferencesFolder/$SubRef/$sub >> $ReferencesFolder/$SubRef/Pooled_SubRefs_${SubRefNumberOfGenomes}Genomes.fasta
+                        done
+                        totalbasepairs=$(grep -v ">" $ReferencesFolder/$SubRef/Pooled_SubRefs_${SubRefNumberOfGenomes}Genomes.fasta | wc -c)
+                    elif [[ ! -s $Ref && -s $ReferencesFolder/$SubRef/Pooled_SubRefs_${SubRefNumberOfGenomes}Genomes.fasta ]]
+                    then
+                        totalbasepairs=$(grep -v ">" $ReferencesFolder/$SubRef/Pooled_SubRefs_${SubRefNumberOfGenomes}Genomes.fasta | wc -c)
+                    elif [[ -s $Ref ]]
+                    then
+                        totalbasepairs=$(grep -v ">" $Ref | wc -c)
+                    fi
                     GenomeCoverage1=$(echo "scale=2; 1000000000 / ${totalbasepairs}" | bc -l)
                     if [[ "${GenomeCoverage1}" < 1 ]]
                     then
@@ -1126,7 +1142,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
                     fi
                     GenomeCoverage=${GenomeCoverage1}
                 else
-					GenomeCoverage=${GenomeCoverage1}
+				    GenomeCoverage=${GenomeCoverage1}
                 fi
 			else
 				GenID=$GenID2
@@ -1134,7 +1150,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
         		GenomeCoverage=${GenomeCoverage2}
 			fi
             Overlap1=$(echo "$GenomeFragLength - $(echo "$GenomeFragLength / ${GenomeCoverage}" | bc)" | bc)
-			if [[ -s $Ref && -s $address/${BucketsFolder}/ReferenceGenome.udb ]]
+			if [[ -s $Ref && -s "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb" ]]
 			then
 				echo "# Continuing searches..."
             elif [[ -d $SubRef && -s "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb" ]]
@@ -1148,17 +1164,17 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 					case $Ref in 
 						*.udb|*.UDB|*.uDB|*.Udb)
 							echo "### Using provided USEARCH database: $Ref"
-							cp $Ref $address/${BucketsFolder}/ReferenceGenome.udb
+							cp $Ref "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb"
 						;;
 						*)
                             case $SearchMode in
                                 F|f|Full|full|FULL|U|u|Usearch|usearch|USEARCH)
-                                    ${usearch} -makeudb_usearch $address/${BucketsFolder}/RefGen_compressed.fa -output $address/${BucketsFolder}/ReferenceGenome.udb -quiet > $address/${BucketsFolder}/makeudblog.txt # udb from reference is created here for genomes
+                                    ${usearch} -makeudb_usearch $address/${BucketsFolder}/RefGen_compressed.fa -output "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb" -quiet > $address/${BucketsFolder}/makeudblog.txt # udb from reference is created here for genomes
                                     rm -rf $address/${BucketsFolder}/makeudblog.txt
                                 ;;
                                 Q|q|Quick|quick|QUICK|MB|mb|Mb|MagicBlast|Magicblast|magicblast|MAGICBLAST|D|d|Diamond|diamond|DIAMOND)
 							        echo "### Making database from reference genome $Ref..."
-                                    ${makemagicblastdb} -in $address/${BucketsFolder}/RefGen_compressed.fa -dbtype nucl -out $address/${BucketsFolder}/ReferenceGenome.bdb -title $(basename ${Ref%.f*})
+                                    ${makemagicblastdb} -in $address/${BucketsFolder}/RefGen_compressed.fa -dbtype nucl -out "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.bdb" -title $(basename ${Ref%.f*})
                                     echo "New db" > $address/${BucketsFolder}/newdb.txt
                                 ;;
                             esac
@@ -1170,7 +1186,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 					case $Ref in 
 						*.udb|*.UDB|*.uDB|*.Udb)
 							echo "### Using provided USEARCH database: $Ref"
-							cp $ReferencesFolder/$Ref $address/${BucketsFolder}/ReferenceGenome.udb
+							cp $ReferencesFolder/$Ref "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb"
 						;;
 						*)
                             case $SearchMode in
@@ -1228,7 +1244,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				# echo "##### Making a USEARCH database."
 				# ${cdhit} -i $address/${BucketsFolder}/RefGen_compressed.fa -o $address/${BucketsFolder}/RefGen_nr.fa -c 0.98 -aS 1.0 -g 1 -d 0 -M 0 -T 0 -n 5 > $address/${BucketsFolder}/cdhitlog # Parameters for CD-Hit (removing redundancy) should be specified here
 				# rm -rf $address/${BucketsFolder}/cdhitlog
-				# ${usearch} -makeudb_usearch $address/${BucketsFolder}/RefGen_compressed.fa -output $address/${BucketsFolder}/ReferenceGenome.udb -quiet > $address/${BucketsFolder}/makeudblog.txt # udb from reference is created here for genomes
+				# ${usearch} -makeudb_usearch $address/${BucketsFolder}/RefGen_compressed.fa -output "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb" -quiet > $address/${BucketsFolder}/makeudblog.txt # udb from reference is created here for genomes
 				# rm -rf $address/${BucketsFolder}/makeudblog.txt
 				# rm -rf $address/${BucketsFolder}/RefGen_compressed.fa
 				rm -rf $address/OUTPUT/${Out}/*.m7.tsv ; rm -rf $address/OUTPUT/${Out}/*.m7.txt
@@ -1263,11 +1279,11 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 						echo -en "\r"; echo -e "# Searching against reference $Ref (id $GenID, evalue ${GENevalue} and maxrejects ${maxrejects1}) and deleting buckets... ${buck%.bk}/$buckets"
 						case $SearchMode in
                             F|f|Full|full|FULL|U|u|Usearch|usearch|USEARCH)
-                                ${usearch} -usearch_global $address/${BucketsFolder}/$buck -db $address/${BucketsFolder}/ReferenceGenome.udb -strand both -id $GenID -evalue ${GENevalue} --maxaccepts 1 --maxrejects ${maxrejects1} -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
+                                ${usearch} -usearch_global $address/${BucketsFolder}/$buck -db "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb" -strand both -id $GenID -evalue ${GENevalue} --maxaccepts 1 --maxrejects ${maxrejects1} -matched $address/OUTPUT/${Out}/$buck.m7 -threads ${threads} -quiet > $address/${BucketsFolder}/usearch.tmp # Parameters of reads search by Usearch algorithm for genome binning should be specified here
                                 mv $address/OUTPUT/${Out}/$buck.m7 $address/OUTPUT/${Out}/$buck.m8
                             ;;
                             Q|q|Quick|quick|QUICK|MB|mb|Mb|MagicBlast|Magicblast|magicblast|MAGICBLAST|D|d|Diamond|diamond|DIAMOND)
-                                ${magicblast} -query $address/${BucketsFolder}/$buck -infmt fasta -db $address/${BucketsFolder}/ReferenceGenome.bdb -outfmt tabular -no_unaligned -perc_identity ${GenID} -out $address/OUTPUT/${Out}/${buck%.bk}.m7.tsv -num_threads ${threads}
+                                ${magicblast} -query $address/${BucketsFolder}/$buck -infmt fasta -db "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.bdb" -outfmt tabular -no_unaligned -perc_identity ${GenID} -out $address/OUTPUT/${Out}/${buck%.bk}.m7.tsv -num_threads ${threads}
                                 grep -v "^# " $address/OUTPUT/${Out}/${buck%.bk}.m7.tsv | awk -v identity=${GenID} -v qcov=${Genqcov1} '$3>=identity && ($8-$7)/$16>=qcov{print $1}' | sort -V | uniq > $address/OUTPUT/${Out}/${buck%.bk}.m7.txt
                                 python ${extpy} $address/OUTPUT/${Out}/${buck%.bk}.m7.txt $address/${BucketsFolder}/$buck $address/OUTPUT/${Out}/$buck.m8 > $address/OUTPUT/${Out}/extpysuppress.tmp
                             ;;
@@ -1284,7 +1300,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 				Y|y|YES|Yes|yes)
 					if [[ -s $ReferencesFolder/BEAF_GenomeUDBs_Folder/$(basename $Ref).udb ]]
 					then
-						touch $address/${BucketsFolder}/ReferenceGenome.udb
+						touch "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb"
 					elif [[ -s $address/${BucketsFolder}/newdb.txt ]]
 					then
 						if [[ -d $ReferencesFolder/BEAF_GenomeBDBs_Folder ]]
@@ -1293,11 +1309,11 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "6" ]]; then echo "******Skipp
 						else
 							mkdir $ReferencesFolder/BEAF_GenomeBDBs_Folder
 						fi
-						mv $address/${BucketsFolder}/ReferenceGenome.bdb $ReferencesFolder/BEAF_GenomeUDBs_Folder/$(basename ${Ref%.f*}).bdb
+						mv "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb" "$ReferencesFolder/BEAF_GenomeUDBs_Folder/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb"
 					fi
 				;;
 				*)
-					touch $address/${BucketsFolder}/ReferenceGenome.udb
+					touch "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb"
 				;;
 			esac
 			rm -rf $address/${BucketsFolder}/*.udb; rm -rf $address/OUTPUT/${Out}/*.m7; rm -rf $address/${BucketsFolder}/buckets_search.txt $address/${BucketsFolder}/usearch.tmp $address/${BucketsFolder}/RefGenome.fasta $address/${BucketsFolder}/ReferenceGenome.udb $address/${BucketsFolder}/ReferenceGenome.bdb "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.udb" "$address/${BucketsFolder}/ReferenceGenome_$(basename $Ref)_$(basename $SubRef)_cov${GenomeCoverage}.bdb"
@@ -1619,7 +1635,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "8" ]]; then echo "******Skipp
 				rm -rf $ReferencesFolder/$SubRef/$sub.nf*
 			done
 		fi
-		ls $ReferencesFolder/$SubRef/*.cov${GenomeCoverage}.udb | sed "s#$ReferencesFolder/$SubRef/##" | sed "s#.cov${GenomeCoverage}.udb##" | sort -S 50% --parallel=${threads} -k1,1 > $ReferencesFolder/$SubRef/udb_cov${GenomeCoverage}_List
+		ls $ReferencesFolder/$SubRef/*.cov${GenomeCoverage}.udb | sed "s#$ReferencesFolder/$SubRef/##" | sed "s#.cov${GenomeCoverage}.udb##" | grep -v "Pooled_SubRefs" | sort -S 50% --parallel=${threads} -k1,1 > $ReferencesFolder/$SubRef/udb_cov${GenomeCoverage}_List
 	fi
 	echo "9" > $address/CR.step; CFLR="N"
 fi
@@ -1633,7 +1649,7 @@ if [[ "$CFLR" == "Y" && `cat $address/CR.step` != "9" ]]; then echo "******Skipp
 		mkdir $address/OUTPUT/${Out}/SubReferences
 		for sub in `cat $ReferencesFolder/$SubRef/udb_cov${GenomeCoverage}_List`; do
 			mkdir $address/OUTPUT/${Out}/SubReferences/${sub}
-			echo -e "# Searching against reference $SubRef/${sub} (id $GenID2, evalue ${GENevalue2} and maxrejects ${genmaxrejects2})..."
+			echo -e "# Searching against subreference $SubRef/${sub} (id $GenID2, evalue ${GENevalue2} and maxrejects ${genmaxrejects2})..."
 			rm -rf $address/OUTPUT/${Out}/SubReferences/$sub.hits.fasta
 			${usearch} -usearch_global $address/OUTPUT/${Out}/hits.fasta -db $ReferencesFolder/$SubRef/$sub.cov${GenomeCoverage}.udb -strand both -id $GenID2 -evalue ${GENevalue2} --maxaccepts 1 --maxrejects ${genmaxrejects2} -matched $address/OUTPUT/${Out}/SubReferences/${sub}/$sub.hits.fasta -threads ${threads} -quiet
 			if [[ ! -s $address/OUTPUT/${Out}/SubReferences/${sub}/$sub.hits.fasta ]] 
